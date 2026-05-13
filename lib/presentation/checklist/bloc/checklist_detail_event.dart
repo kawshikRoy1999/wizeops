@@ -30,3 +30,33 @@ class UpdateFieldValue extends ChecklistDetailEvent {
   @override
   List<Object> get props => [labelId, value];
 }
+
+class UpdateNoteValue extends ChecklistDetailEvent {
+  final int labelId;
+  final String value;
+
+  const UpdateNoteValue({required this.labelId, required this.value});
+
+  @override
+  List<Object> get props => [labelId, value];
+}
+
+class UpdateFlagValue extends ChecklistDetailEvent {
+  final int labelId;
+  final bool raised;
+
+  const UpdateFlagValue({required this.labelId, required this.raised});
+
+  @override
+  List<Object> get props => [labelId, raised];
+}
+
+class UpdateFileValue extends ChecklistDetailEvent {
+  final int labelId;
+  final List<String> paths;
+
+  const UpdateFileValue({required this.labelId, required this.paths});
+
+  @override
+  List<Object> get props => [labelId, paths];
+}

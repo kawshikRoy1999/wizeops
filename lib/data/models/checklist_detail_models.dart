@@ -85,6 +85,7 @@ class ChecklistDetailItemModel {
   final String checklistNote;
   final int checkListAssignmentValuesId;
   final bool status;
+  final String filePathsJson;
 
   const ChecklistDetailItemModel({
     required this.parentChecklistLabelId,
@@ -98,6 +99,7 @@ class ChecklistDetailItemModel {
     required this.checklistNote,
     required this.checkListAssignmentValuesId,
     required this.status,
+    required this.filePathsJson,
   });
 
   factory ChecklistDetailItemModel.fromJson(Map<String, dynamic> json) {
@@ -114,6 +116,7 @@ class ChecklistDetailItemModel {
       checkListAssignmentValuesId:
           json['checkListAssignmentValuesId'] as int? ?? 0,
       status: json['status'] as bool? ?? false,
+      filePathsJson: json['filePathsJson'] as String? ?? '',
     );
   }
 
@@ -129,5 +132,6 @@ class ChecklistDetailItemModel {
         checklistNote: checklistNote,
         checkListAssignmentValuesId: checkListAssignmentValuesId,
         status: status,
+        filePathsJson: filePathsJson,
       );
 }

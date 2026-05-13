@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../../core/di/injection_container.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/checklist_detail_entity.dart';
@@ -132,15 +134,19 @@ class _LoadedView extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
             itemCount: summary.details.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, i) => _QuestionCard(
-              index: i,
-              detail: summary.details[i],
-              currentValue: state.fieldValues[
-                      summary.details[i].parentChecklistLabelId] ??
-                  '',
-              isReadOnly: summary.isSubmitted,
-              isDark: isDark,
-            ),
+            itemBuilder: (context, i) {
+              final id = summary.details[i].parentChecklistLabelId;
+              return _QuestionCard(
+                index: i,
+                detail: summary.details[i],
+                currentValue: state.fieldValues[id] ?? '',
+                currentNote: state.noteValues[id] ?? '',
+                isFlagged: !(state.flagValues[id] ?? true),
+                filePaths: state.fileValues[id] ?? [],
+                isReadOnly: summary.isSubmitted,
+                isDark: isDark,
+              );
+            },
           ),
         ),
       ],
@@ -260,7 +266,11 @@ class _ProgressBar extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? AppTheme.darkTextHigh : AppTheme.textHighEmphasis,
+                  color: answered > 0
+                      ? AppTheme.statusSuccess
+                      : isDark
+                          ? AppTheme.darkTextHigh
+                          : AppTheme.textHighEmphasis,
                 ),
               ),
             ],
@@ -270,11 +280,11 @@ class _ProgressBar extends StatelessWidget {
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: progress,
-              minHeight: 5,
+              minHeight: 6,
               backgroundColor:
                   isDark ? AppTheme.darkBorder : const Color(0xFFE8ECF0),
               valueColor: const AlwaysStoppedAnimation<Color>(
-                  AppTheme.primaryBranding),
+                  AppTheme.statusSuccess),
             ),
           ),
         ],
@@ -290,6 +300,9 @@ class _QuestionCard extends StatelessWidget {
   final int index;
   final ChecklistDetailEntity detail;
   final String currentValue;
+  final String currentNote;
+  final bool isFlagged;
+  final List<String> filePaths;
   final bool isReadOnly;
   final bool isDark;
 
@@ -297,6 +310,9 @@ class _QuestionCard extends StatelessWidget {
     required this.index,
     required this.detail,
     required this.currentValue,
+    required this.currentNote,
+    required this.isFlagged,
+    required this.filePaths,
     required this.isReadOnly,
     required this.isDark,
   });
@@ -396,39 +412,43 @@ class _QuestionCard extends StatelessWidget {
             const SizedBox(height: 14),
             // Dynamic input
             _buildField(context),
-            // Note
-            if (detail.checklistNote.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _Divider(isDark: isDark),
+            const SizedBox(height: 12),
+            // Remarks / Notes textarea
+            _NoteField(
+              labelId: detail.parentChecklistLabelId,
+              value: currentNote,
+              isReadOnly: isReadOnly,
+              isDark: isDark,
+            ),
+            const SizedBox(height: 12),
+            // Raise a Flag + Attachments row
+            Row(
+              children: [
+                Expanded(
+                  child: _RaiseFlagCheckbox(
+                    labelId: detail.parentChecklistLabelId,
+                    isFlagged: isFlagged,
+                    isReadOnly: isReadOnly,
+                    isDark: isDark,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                _AttachmentButton(
+                  labelId: detail.parentChecklistLabelId,
+                  filePaths: filePaths,
+                  isReadOnly: isReadOnly,
+                  isDark: isDark,
+                ),
+              ],
+            ),
+            if (filePaths.isNotEmpty) ...[
               const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? AppTheme.darkSurface
-                      : AppTheme.scaffoldBg,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.notes_rounded,
-                        size: 13,
-                        color: isDark
-                            ? AppTheme.darkTextLow
-                            : AppTheme.textLowEmphasis),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        detail.checklistNote,
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: isDark
-                              ? AppTheme.darkTextLow
-                              : AppTheme.textLowEmphasis,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              _AttachmentList(
+                labelId: detail.parentChecklistLabelId,
+                filePaths: filePaths,
+                isDark: isDark,
               ),
             ],
           ],
@@ -873,6 +893,541 @@ class _TextBoxFieldState extends State<_TextBoxField> {
               color: AppTheme.primaryBranding, width: 1.6),
         ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Divider
+// ─────────────────────────────────────────
+class _Divider extends StatelessWidget {
+  final bool isDark;
+  const _Divider({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Divider(
+      height: 1,
+      thickness: 1,
+      color: isDark ? AppTheme.darkBorder : const Color(0xFFEEF0F4),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Note Field (Remarks / Notes textarea)
+// ─────────────────────────────────────────
+class _NoteField extends StatefulWidget {
+  final int labelId;
+  final String value;
+  final bool isReadOnly;
+  final bool isDark;
+
+  const _NoteField({
+    required this.labelId,
+    required this.value,
+    required this.isReadOnly,
+    required this.isDark,
+  });
+
+  @override
+  State<_NoteField> createState() => _NoteFieldState();
+}
+
+class _NoteFieldState extends State<_NoteField> {
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.value);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.edit_note_rounded,
+              size: 14,
+              color: widget.isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              'Remarks / Notes',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: widget.isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _ctrl,
+          readOnly: widget.isReadOnly,
+          maxLines: 3,
+          minLines: 2,
+          onChanged: (v) => context
+              .read<ChecklistDetailBloc>()
+              .add(UpdateNoteValue(labelId: widget.labelId, value: v)),
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            color: widget.isDark ? AppTheme.darkTextHigh : AppTheme.textHighEmphasis,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Add your remarks or notes here...',
+            hintStyle: GoogleFonts.inter(
+              fontSize: 13,
+              color: widget.isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
+            ),
+            filled: true,
+            fillColor: widget.isDark ? AppTheme.darkSurface : AppTheme.scaffoldBg,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(
+                  color: widget.isDark ? AppTheme.darkBorder : const Color(0xFFE4E7EC)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(
+                  color: widget.isDark ? AppTheme.darkBorder : const Color(0xFFE4E7EC)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppTheme.primaryBranding, width: 1.6),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Raise a Flag Checkbox
+// ─────────────────────────────────────────
+class _RaiseFlagCheckbox extends StatelessWidget {
+  final int labelId;
+  final bool isFlagged;
+  final bool isReadOnly;
+  final bool isDark;
+
+  const _RaiseFlagCheckbox({
+    required this.labelId,
+    required this.isFlagged,
+    required this.isReadOnly,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: isReadOnly
+          ? null
+          : () => context.read<ChecklistDetailBloc>().add(
+                // visual isFlagged is inverted from API status:
+                // checking (isFlagged goes false→true) sends status=false
+                // unchecking (isFlagged goes true→false) sends status=true
+                UpdateFlagValue(labelId: labelId, raised: isFlagged),
+              ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: isFlagged
+              ? AppTheme.statusError.withOpacity(0.08)
+              : isDark
+                  ? AppTheme.darkSurface
+                  : AppTheme.scaffoldBg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isFlagged
+                ? AppTheme.statusError.withOpacity(0.4)
+                : isDark
+                    ? AppTheme.darkBorder
+                    : const Color(0xFFE4E7EC),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                color: isFlagged ? AppTheme.statusError : Colors.transparent,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: isFlagged
+                      ? AppTheme.statusError
+                      : isDark
+                          ? AppTheme.darkTextLow
+                          : const Color(0xFFCBD5E1),
+                  width: 1.5,
+                ),
+              ),
+              child: isFlagged
+                  ? const Icon(Icons.check_rounded, size: 11, color: Colors.white)
+                  : null,
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.flag_rounded,
+              size: 13,
+              color: isFlagged
+                  ? AppTheme.statusError
+                  : isDark
+                      ? AppTheme.darkTextLow
+                      : AppTheme.textLowEmphasis,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Raise a Flag',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: isFlagged ? FontWeight.w600 : FontWeight.w400,
+                color: isFlagged
+                    ? AppTheme.statusError
+                    : isDark
+                        ? AppTheme.darkTextLow
+                        : AppTheme.textLowEmphasis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Attachment Button
+// ─────────────────────────────────────────
+class _AttachmentButton extends StatelessWidget {
+  final int labelId;
+  final List<String> filePaths;
+  final bool isReadOnly;
+  final bool isDark;
+
+  const _AttachmentButton({
+    required this.labelId,
+    required this.filePaths,
+    required this.isReadOnly,
+    required this.isDark,
+  });
+
+  Future<void> _showPicker(BuildContext context) async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? AppTheme.darkCard : AppTheme.surfaceWhite,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _AttachmentSheet(
+        labelId: labelId,
+        existingPaths: filePaths,
+        isDark: isDark,
+        blocContext: context,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final count = filePaths.length;
+    return GestureDetector(
+      onTap: isReadOnly ? null : () => _showPicker(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.darkSurface : AppTheme.scaffoldBg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isDark ? AppTheme.darkBorder : const Color(0xFFE4E7EC),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.attach_file_rounded,
+              size: 15,
+              color: isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              count > 0 ? '$count file${count > 1 ? 's' : ''}' : 'Attach',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: count > 0 ? FontWeight.w600 : FontWeight.w400,
+                color: count > 0
+                    ? AppTheme.primaryBranding
+                    : isDark
+                        ? AppTheme.darkTextLow
+                        : AppTheme.textLowEmphasis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Attachment Bottom Sheet
+// ─────────────────────────────────────────
+class _AttachmentSheet extends StatelessWidget {
+  final int labelId;
+  final List<String> existingPaths;
+  final bool isDark;
+  final BuildContext blocContext;
+
+  const _AttachmentSheet({
+    required this.labelId,
+    required this.existingPaths,
+    required this.isDark,
+    required this.blocContext,
+  });
+
+  void _addPath(BuildContext ctx, String path) {
+    final updated = [...existingPaths, path];
+    blocContext
+        .read<ChecklistDetailBloc>()
+        .add(UpdateFileValue(labelId: labelId, paths: updated));
+    Navigator.pop(ctx);
+  }
+
+  Future<void> _openCamera(BuildContext ctx) async {
+    final picker = ImagePicker();
+    final photo = await picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+    if (photo != null && ctx.mounted) _addPath(ctx, photo.path);
+  }
+
+  Future<void> _browseFiles(BuildContext ctx) async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      type: FileType.any,
+    );
+    if (result != null && result.files.single.path != null && ctx.mounted) {
+      _addPath(ctx, result.files.single.path!);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final labelColor = isDark ? AppTheme.darkTextHigh : AppTheme.textHighEmphasis;
+    final subColor = isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? AppTheme.darkBorder : const Color(0xFFDDE1E7),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Add Attachment',
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: labelColor,
+              ),
+            ),
+            Text(
+              'Choose how you want to attach a file',
+              style: GoogleFonts.inter(fontSize: 12, color: subColor),
+            ),
+            const SizedBox(height: 20),
+            _SheetOption(
+              icon: Icons.camera_alt_rounded,
+              label: 'Open Camera',
+              subtitle: 'Take a photo or video',
+              isDark: isDark,
+              onTap: () => _openCamera(context),
+            ),
+            const SizedBox(height: 10),
+            _SheetOption(
+              icon: Icons.folder_open_rounded,
+              label: 'Browse Files',
+              subtitle: 'Pick from device storage',
+              isDark: isDark,
+              onTap: () => _browseFiles(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _SheetOption({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.darkSurface : AppTheme.scaffoldBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDark ? AppTheme.darkBorder : const Color(0xFFE4E7EC),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryBranding.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 20, color: AppTheme.primaryBranding),
+            ),
+            const SizedBox(width: 14),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? AppTheme.darkTextHigh : AppTheme.textHighEmphasis,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Attachment List (selected files)
+// ─────────────────────────────────────────
+class _AttachmentList extends StatelessWidget {
+  final int labelId;
+  final List<String> filePaths;
+  final bool isDark;
+
+  const _AttachmentList({
+    required this.labelId,
+    required this.filePaths,
+    required this.isDark,
+  });
+
+  String _fileName(String path) => path.split('/').last.split('\\').last;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: filePaths.map((path) {
+        final name = _fileName(path);
+        final isImage = ['.jpg', '.jpeg', '.png', '.heic', '.webp']
+            .any((ext) => name.toLowerCase().endsWith(ext));
+        return Container(
+          margin: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkSurface : AppTheme.scaffoldBg,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isDark ? AppTheme.darkBorder : const Color(0xFFE4E7EC),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isImage ? Icons.image_rounded : Icons.insert_drive_file_rounded,
+                size: 16,
+                color: AppTheme.primaryBranding,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: isDark ? AppTheme.darkTextHigh : AppTheme.textHighEmphasis,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  final updated = filePaths.where((p) => p != path).toList();
+                  context.read<ChecklistDetailBloc>().add(
+                        UpdateFileValue(labelId: labelId, paths: updated),
+                      );
+                },
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 14,
+                  color: isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 }
