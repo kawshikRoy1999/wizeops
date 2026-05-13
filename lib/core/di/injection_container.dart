@@ -1,11 +1,17 @@
 import 'package:get_it/get_it.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../network/dio_client.dart';
+import '../theme/theme_cubit.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
+import '../../data/datasources/checklist_remote_datasource.dart';
 import '../../data/repositories/auth_repository_impl.dart';
+import '../../data/repositories/checklist_repository_impl.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../domain/repositories/checklist_repository.dart';
 import '../../domain/usecases/login_usecase.dart';
+import '../../domain/usecases/get_assigned_checklist_usecase.dart';
 import '../../presentation/auth/bloc/auth_bloc.dart';
+import '../../presentation/dashboard/bloc/checklist_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -38,6 +44,32 @@ Future<void> initDependencies() async {
   // Use Cases
   sl.registerLazySingleton<LoginUseCase>(
     () => LoginUseCase(sl<AuthRepository>()),
+  );
+
+  // Checklist Data Sources
+  sl.registerLazySingleton<ChecklistRemoteDataSource>(
+    () => ChecklistRemoteDataSourceImpl(sl<DioClient>().dio),
+  );
+
+  // Checklist Repositories
+  sl.registerLazySingleton<ChecklistRepository>(
+    () => ChecklistRepositoryImpl(
+        remoteDataSource: sl<ChecklistRemoteDataSource>()),
+  );
+
+  // Checklist Use Cases
+  sl.registerLazySingleton<GetAssignedChecklistUseCase>(
+    () => GetAssignedChecklistUseCase(sl<ChecklistRepository>()),
+  );
+
+  // Checklist BLoC
+  sl.registerFactory<ChecklistBloc>(
+    () => ChecklistBloc(useCase: sl<GetAssignedChecklistUseCase>()),
+  );
+
+  // Theme
+  sl.registerLazySingleton<ThemeCubit>(
+    () => ThemeCubit(sl<FlutterSecureStorage>()),
   );
 
   // BLoCs

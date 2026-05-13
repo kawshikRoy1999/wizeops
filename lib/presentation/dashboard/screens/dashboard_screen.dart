@@ -1,37 +1,49 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/di/injection_container.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/user_entity.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/screens/login_screen.dart';
+import '../../settings/screens/settings_screen.dart';
+import '../bloc/checklist_bloc.dart';
 
-class DashboardScreen extends StatefulWidget {
+class DashboardScreen extends StatelessWidget {
   final UserEntity user;
   const DashboardScreen({super.key, required this.user});
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  Widget build(BuildContext context) {
+    return BlocProvider<ChecklistBloc>(
+      create: (_) {
+        final bloc = sl<ChecklistBloc>();
+        final now = DateTime.now();
+        bloc.add(FetchChecklists(
+          assignDateTime: _formatDate(now),
+          companyId: user.companyId,
+          userId: user.id,
+          selectedDate: now,
+        ));
+        return bloc;
+      },
+      child: _DashboardView(user: user),
+    );
+  }
+
+  static String _formatDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
-  int _selectedModule = 0;
-
-  final List<_Module> _modules = const [
-    _Module(
-      title: 'House Keeping',
-      icon: Icons.cleaning_services_outlined,
-      description: 'Manage daily cleaning and sanitation checklists',
-    ),
-    _Module(
-      title: 'Manage Steward',
-      icon: Icons.restaurant_outlined,
-      description: 'Oversee steward tasks and operational flows',
-    ),
-  ];
+class _DashboardView extends StatelessWidget {
+  final UserEntity user;
+  const _DashboardView({required this.user});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthInitial) {
@@ -42,276 +54,444 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
       },
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('WizeOps'),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: IconButton(
-                onPressed: () => _confirmLogout(context),
-                icon: const Icon(Icons.logout_rounded),
-                tooltip: 'Sign Out',
-              ),
-            ),
-          ],
-        ),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        appBar: _buildAppBar(context, isDark),
         body: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _WelcomeBanner(user: widget.user),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-              child: Text(
-                'Select Module',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textHighEmphasis,
-                ),
-              ),
-            ),
-            Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: _modules.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final mod = _modules[index];
-                  final selected = _selectedModule == index;
-                  return _ModuleCard(
-                    module: mod,
-                    selected: selected,
-                    onTap: () => setState(() => _selectedModule = index),
-                  );
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: ElevatedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                          'Opening ${_modules[_selectedModule].title} checklists...'),
-                      backgroundColor: AppTheme.primaryBranding,
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.actionAccent,
-                ),
-                child: Text(
-                  'Open Checklists',
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
+            _GreetingHeader(user: user, isDark: isDark),
+            _DatePickerBar(user: user, isDark: isDark),
+            Expanded(child: _ChecklistBody(isDark: isDark)),
           ],
         ),
       ),
     );
   }
 
-  void _confirmLogout(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          'Sign Out',
-          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+  PreferredSizeWidget _buildAppBar(BuildContext context, bool isDark) {
+    return AppBar(
+      backgroundColor:
+          isDark ? AppTheme.darkSurface : AppTheme.primaryBranding,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      title: Text(
+        'WizeOps',
+        style: GoogleFonts.inter(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+          letterSpacing: -0.3,
         ),
-        content: Text(
-          'Are you sure you want to sign out?',
-          style: GoogleFonts.inter(color: AppTheme.textLowEmphasis),
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.inter(color: AppTheme.textLowEmphasis),
+      ),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BlocProvider.value(
+                  value: context.read<AuthBloc>(),
+                  child: SettingsScreen(user: user),
+                ),
+              ),
             ),
+            child: _AvatarChip(user: user),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              context.read<AuthBloc>().add(const LogoutRequested());
-            },
-            child: Text(
-              'Sign Out',
-              style: GoogleFonts.inter(color: AppTheme.statusError),
-            ),
-          ),
-        ],
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// AppBar Avatar
+// ─────────────────────────────────────────
+class _AvatarChip extends StatelessWidget {
+  final UserEntity user;
+  const _AvatarChip({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    final initials =
+        '${user.firstName.isNotEmpty ? user.firstName[0] : ''}${user.lastName.isNotEmpty ? user.lastName[0] : ''}'
+            .toUpperCase();
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white30),
+      ),
+      child: Center(
+        child: Text(initials,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              height: 1,
+            )),
       ),
     );
   }
 }
 
-class _WelcomeBanner extends StatelessWidget {
+// ─────────────────────────────────────────
+// Greeting Header
+// ─────────────────────────────────────────
+class _GreetingHeader extends StatelessWidget {
   final UserEntity user;
-  const _WelcomeBanner({required this.user});
+  final bool isDark;
+  const _GreetingHeader({required this.user, required this.isDark});
+
+  String get _greeting {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      color: AppTheme.primaryBranding,
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      color: isDark ? AppTheme.darkSurface : AppTheme.primaryBranding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: AppTheme.actionAccent,
-            child: Text(
-              user.firstName.isNotEmpty ? user.firstName[0].toUpperCase() : 'U',
+          Text(_greeting,
               style: GoogleFonts.inter(
+                  fontSize: 12, color: Colors.white54)),
+          const SizedBox(height: 2),
+          Text(user.fullName,
+              style: GoogleFonts.inter(
+                fontSize: 18,
                 fontWeight: FontWeight.w700,
-                fontSize: 20,
                 color: Colors.white,
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Welcome back,',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: Colors.white60,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  user.fullName,
-                  style: GoogleFonts.inter(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  user.roles,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: AppTheme.actionAccent,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
+                letterSpacing: -0.3,
+              )),
         ],
       ),
     );
   }
 }
 
-class _ModuleCard extends StatelessWidget {
-  final _Module module;
-  final bool selected;
-  final VoidCallback onTap;
+// ─────────────────────────────────────────
+// Date Picker Bar
+// ─────────────────────────────────────────
+class _DatePickerBar extends StatelessWidget {
+  final UserEntity user;
+  final bool isDark;
+  const _DatePickerBar({required this.user, required this.isDark});
 
-  const _ModuleCard({
-    required this.module,
-    required this.selected,
-    required this.onTap,
-  });
+  String _label(DateTime d) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final picked = DateTime(d.year, d.month, d.day);
+    if (picked == today) return 'Today';
+    if (picked == today.subtract(const Duration(days: 1))) return 'Yesterday';
+    if (picked == today.add(const Duration(days: 1))) return 'Tomorrow';
+    const months = [
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${d.day} ${months[d.month]} ${d.year}';
+  }
+
+  String _formatDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+  Future<void> _pickDate(BuildContext context, DateTime current) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      builder: (ctx, child) {
+        final dark = Theme.of(ctx).brightness == Brightness.dark;
+        return Theme(
+          data: Theme.of(ctx).copyWith(
+            colorScheme: dark
+                ? const ColorScheme.dark(
+                    primary: AppTheme.primaryBranding,
+                    onPrimary: Colors.white,
+                    surface: AppTheme.darkCard,
+                    onSurface: AppTheme.darkTextHigh,
+                    secondaryContainer: AppTheme.primaryBranding,
+                    onSecondaryContainer: Colors.white,
+                    outline: AppTheme.darkBorder,
+                  )
+                : const ColorScheme.light(
+                    primary: AppTheme.primaryBranding,
+                    onPrimary: Colors.white,
+                    surface: Colors.white,
+                    onSurface: AppTheme.textHighEmphasis,
+                    secondaryContainer: AppTheme.primaryBranding,
+                    onSecondaryContainer: Colors.white,
+                    outline: Color(0xFFE4E7EC),
+                  ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.primaryBranding,
+                textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              ),
+            ),
+            dialogTheme: DialogThemeData(
+              backgroundColor:
+                  dark ? AppTheme.darkCard : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && context.mounted) {
+      context.read<ChecklistBloc>().add(FetchChecklists(
+            assignDateTime: _formatDate(picked),
+            companyId: user.companyId,
+            userId: user.id,
+            selectedDate: picked,
+          ));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          color: selected ? AppTheme.primaryBranding : AppTheme.surfaceWhite,
-          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
-          border: Border.all(
-            color: selected ? AppTheme.primaryBranding : const Color(0xFFDDE1E7),
-            width: selected ? 2 : 1,
+    return BlocBuilder<ChecklistBloc, ChecklistState>(
+      builder: (context, state) {
+        final date = state.selectedDate;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkBg : AppTheme.scaffoldBg,
+            border: Border(
+              bottom: BorderSide(
+                color: isDark ? AppTheme.darkBorder : const Color(0xFFE8ECF0),
+              ),
+            ),
           ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: AppTheme.primaryBranding.withOpacity(0.2),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  )
-                ]
-              : [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  )
-                ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(18),
           child: Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? Colors.white.withOpacity(0.15)
-                      : AppTheme.scaffoldBg,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  module.icon,
-                  color: selected ? AppTheme.actionAccent : AppTheme.primaryBranding,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      module.title,
-                      style: GoogleFonts.inter(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: selected
-                            ? Colors.white
-                            : AppTheme.textHighEmphasis,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      module.description,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: selected
-                            ? Colors.white60
-                            : AppTheme.textLowEmphasis,
-                      ),
-                    ),
-                  ],
+              Icon(Icons.calendar_today_outlined,
+                  size: 15,
+                  color: isDark
+                      ? AppTheme.darkTextLow
+                      : AppTheme.textLowEmphasis),
+              const SizedBox(width: 8),
+              Text(
+                'Checklists for',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color:
+                      isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
                 ),
               ),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 16,
-                color: selected ? Colors.white70 : AppTheme.textLowEmphasis,
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: () => _pickDate(context, date),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryBranding.withOpacity(
+                        isDark ? 0.25 : 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppTheme.primaryBranding.withOpacity(
+                          isDark ? 0.4 : 0.2),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _label(date),
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isDark
+                              ? AppTheme.darkTextHigh
+                              : AppTheme.primaryBranding,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.expand_more_rounded,
+                          size: 15,
+                          color: isDark
+                              ? AppTheme.darkTextHigh
+                              : AppTheme.primaryBranding),
+                    ],
+                  ),
+                ),
+              ),
+              const Spacer(),
+              // Refresh
+              GestureDetector(
+                onTap: () => context.read<ChecklistBloc>().add(FetchChecklists(
+                      assignDateTime: _formatDate(date),
+                      companyId: user.companyId,
+                      userId: user.id,
+                      selectedDate: date,
+                    )),
+                child: Icon(Icons.refresh_rounded,
+                    size: 18,
+                    color: isDark
+                        ? AppTheme.darkTextLow
+                        : AppTheme.textLowEmphasis),
               ),
             ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Checklist Body
+// ─────────────────────────────────────────
+class _ChecklistBody extends StatelessWidget {
+  final bool isDark;
+  const _ChecklistBody({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ChecklistBloc, ChecklistState>(
+      builder: (context, state) {
+        if (state is ChecklistLoading) {
+          return const Center(
+            child: CircularProgressIndicator(
+              color: AppTheme.primaryBranding,
+              strokeWidth: 2.5,
+            ),
+          );
+        }
+
+        if (state is ChecklistError) {
+          return _ErrorView(message: state.message, isDark: isDark);
+        }
+
+        if (state is ChecklistLoaded) {
+          if (state.items.isEmpty) {
+            return _EmptyView(isDark: isDark);
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+            itemCount: state.items.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (_, i) => _ChecklistCard(
+              item: state.items[i],
+              isDark: isDark,
+            ),
+          );
+        }
+
+        return const SizedBox.shrink();
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Checklist Card
+// ─────────────────────────────────────────
+class _ChecklistCard extends StatelessWidget {
+  final dynamic item;
+  final bool isDark;
+  const _ChecklistCard({required this.item, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final submitted = item.isSubmitted as bool;
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkCard : AppTheme.surfaceWhite,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: submitted
+              ? AppTheme.statusSuccess.withOpacity(isDark ? 0.3 : 0.25)
+              : isDark
+                  ? AppTheme.darkBorder
+                  : const Color(0xFFE8ECF0),
+        ),
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () {},
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Status indicator
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: submitted
+                        ? AppTheme.statusSuccess.withOpacity(0.1)
+                        : AppTheme.primaryBranding.withOpacity(0.07),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Icon(
+                    submitted
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                    size: 20,
+                    color: submitted
+                        ? AppTheme.statusSuccess
+                        : isDark
+                            ? AppTheme.darkTextLow
+                            : AppTheme.primaryBranding,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.checklistName as String,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: isDark
+                              ? AppTheme.darkTextHigh
+                              : AppTheme.textHighEmphasis,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.assignDateTime as String,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: isDark
+                              ? AppTheme.darkTextLow
+                              : AppTheme.textLowEmphasis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                _StatusBadge(submitted: submitted),
+              ],
+            ),
           ),
         ),
       ),
@@ -319,14 +499,135 @@ class _ModuleCard extends StatelessWidget {
   }
 }
 
-class _Module {
-  final String title;
-  final IconData icon;
-  final String description;
+// ─────────────────────────────────────────
+// Status Badge
+// ─────────────────────────────────────────
+class _StatusBadge extends StatelessWidget {
+  final bool submitted;
+  const _StatusBadge({required this.submitted});
 
-  const _Module({
-    required this.title,
-    required this.icon,
-    required this.description,
-  });
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: submitted
+            ? AppTheme.statusSuccess.withOpacity(0.1)
+            : const Color(0xFFF0F4FF),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: submitted
+              ? AppTheme.statusSuccess.withOpacity(0.3)
+              : AppTheme.primaryBranding.withOpacity(0.15),
+        ),
+      ),
+      child: Text(
+        submitted ? 'Submitted' : 'Pending',
+        style: GoogleFonts.inter(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: submitted
+              ? AppTheme.statusSuccess
+              : AppTheme.primaryBranding,
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Empty State
+// ─────────────────────────────────────────
+class _EmptyView extends StatelessWidget {
+  final bool isDark;
+  const _EmptyView({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.checklist_rounded,
+              size: 48,
+              color: isDark
+                  ? AppTheme.darkTextLow.withOpacity(0.4)
+                  : AppTheme.textLowEmphasis.withOpacity(0.35)),
+          const SizedBox(height: 14),
+          Text('No checklists for this date',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
+              )),
+          const SizedBox(height: 4),
+          Text('Try selecting a different date',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: (isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis)
+                    .withOpacity(0.7),
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Error State
+// ─────────────────────────────────────────
+class _ErrorView extends StatelessWidget {
+  final String message;
+  final bool isDark;
+  const _ErrorView({required this.message, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.wifi_off_rounded,
+                size: 44,
+                color: AppTheme.statusError.withOpacity(0.5)),
+            const SizedBox(height: 14),
+            Text(message,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
+                )),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: () => context.read<ChecklistBloc>().add(
+                    FetchChecklists(
+                      assignDateTime:
+                          '${DateTime.now().day.toString().padLeft(2, '0')}/${DateTime.now().month.toString().padLeft(2, '0')}/${DateTime.now().year}',
+                      companyId: 0,
+                      userId: '',
+                      selectedDate: DateTime.now(),
+                    ),
+                  ),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryBranding,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text('Retry',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    )),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

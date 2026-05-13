@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../bloc/auth_bloc.dart';
 import '../../dashboard/screens/dashboard_screen.dart';
-import '../../widgets/app_text_field.dart';
-import '../../widgets/app_logo.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,30 +13,54 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _userNameController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  final _emailFocus = FocusNode();
+  final _passFocus = FocusNode();
   bool _rememberMe = false;
   final int _companyId = 0;
 
+  late final AnimationController _anim;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ));
+    _anim = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 540));
+    _fade = CurvedAnimation(parent: _anim, curve: Curves.easeOut);
+    _slide = Tween(begin: const Offset(0, 0.04), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _anim, curve: Curves.easeOutCubic));
+    _anim.forward();
+  }
+
   @override
   void dispose() {
-    _userNameController.dispose();
-    _passwordController.dispose();
+    _anim.dispose();
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
+    _emailFocus.dispose();
+    _passFocus.dispose();
     super.dispose();
   }
 
   void _submit() {
+    FocusScope.of(context).unfocus();
     if (_formKey.currentState?.validate() != true) return;
-    context.read<AuthBloc>().add(
-          LoginSubmitted(
-            companyId: _companyId,
-            userName: _userNameController.text.trim(),
-            password: _passwordController.text,
-            rememberMe: _rememberMe,
-          ),
-        );
+    context.read<AuthBloc>().add(LoginSubmitted(
+          companyId: _companyId,
+          userName: _emailCtrl.text.trim(),
+          password: _passCtrl.text,
+          rememberMe: _rememberMe,
+        ));
   }
 
   @override
@@ -45,83 +68,61 @@ class _LoginScreenState extends State<LoginScreen> {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthSuccess) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => DashboardScreen(user: state.user),
-            ),
-          );
+          Navigator.of(context).pushReplacement(MaterialPageRoute(
+              builder: (_) => DashboardScreen(user: state.user)));
         } else if (state is AuthFailure) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
-              backgroundColor: AppTheme.statusError,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(state.message,
+                style: GoogleFonts.inter(color: Colors.white, fontSize: 13)),
+            backgroundColor: AppTheme.statusError,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
+          ));
         }
       },
       child: Scaffold(
         backgroundColor: AppTheme.scaffoldBg,
         body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: IntrinsicHeight(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Column(
-                        children: [
-                          const Spacer(flex: 2),
-                          const AppLogo(),
-                          const SizedBox(height: 12),
-                          Text(
-                            'WizeOps',
-                            style: GoogleFonts.inter(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.primaryBranding,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Restaurant Operations Manager',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              color: AppTheme.textLowEmphasis,
-                            ),
-                          ),
-                          const Spacer(flex: 2),
-                          _LoginCard(
-                            formKey: _formKey,
-                            userNameController: _userNameController,
-                            passwordController: _passwordController,
-                            rememberMe: _rememberMe,
-                            onRememberMeChanged: (val) =>
-                                setState(() => _rememberMe = val ?? false),
-                            onSubmit: _submit,
-                          ),
-                          const Spacer(flex: 3),
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: Text(
-                              '© 2024 Wize Restaurant. All rights reserved.',
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                color: AppTheme.textLowEmphasis,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ],
+          child: FadeTransition(
+            opacity: _fade,
+            child: SlideTransition(
+              position: _slide,
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // ── Brand Mark ──
+                      _BrandMark(),
+                      const SizedBox(height: 40),
+                      // ── Card ──
+                      _LoginCard(
+                        formKey: _formKey,
+                        emailCtrl: _emailCtrl,
+                        passCtrl: _passCtrl,
+                        emailFocus: _emailFocus,
+                        passFocus: _passFocus,
+                        rememberMe: _rememberMe,
+                        onRememberChanged: (v) =>
+                            setState(() => _rememberMe = v),
+                        onSubmit: _submit,
                       ),
-                    ),
+                      const SizedBox(height: 24),
+                      Text(
+                        '© 2024 Wize Restaurant',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: AppTheme.textLowEmphasis.withOpacity(0.55),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              );
-            },
+              ),
+            ),
           ),
         ),
       ),
@@ -129,160 +130,401 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
+// ─────────────────────────────────────────
+// Brand Mark
+// ─────────────────────────────────────────
+class _BrandMark extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryBranding,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Center(
+            child: Text('W',
+                style: GoogleFonts.inter(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  height: 1,
+                )),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text('WizeOps',
+            style: GoogleFonts.inter(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textHighEmphasis,
+              letterSpacing: -0.4,
+            )),
+        const SizedBox(height: 3),
+        Text('Restaurant Operations',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: AppTheme.textLowEmphasis,
+            )),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Login Card
+// ─────────────────────────────────────────
 class _LoginCard extends StatelessWidget {
   final GlobalKey<FormState> formKey;
-  final TextEditingController userNameController;
-  final TextEditingController passwordController;
+  final TextEditingController emailCtrl;
+  final TextEditingController passCtrl;
+  final FocusNode emailFocus;
+  final FocusNode passFocus;
   final bool rememberMe;
-  final ValueChanged<bool?> onRememberMeChanged;
+  final ValueChanged<bool> onRememberChanged;
   final VoidCallback onSubmit;
 
   const _LoginCard({
     required this.formKey,
-    required this.userNameController,
-    required this.passwordController,
+    required this.emailCtrl,
+    required this.passCtrl,
+    required this.emailFocus,
+    required this.passFocus,
     required this.rememberMe,
-    required this.onRememberMeChanged,
+    required this.onRememberChanged,
     required this.onSubmit,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Form(
-          key: formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Sign In',
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceWhite,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2C3E50).withOpacity(0.07),
+            blurRadius: 32,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Welcome back',
                 style: GoogleFonts.inter(
-                  fontSize: 22,
+                  fontSize: 20,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.textHighEmphasis,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Access your operational dashboard',
+                  letterSpacing: -0.3,
+                )),
+            const SizedBox(height: 4),
+            Text('Sign in to continue',
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   color: AppTheme.textLowEmphasis,
-                ),
-              ),
-              const SizedBox(height: 28),
-              AppTextField(
-                controller: userNameController,
-                label: 'Email / Username',
-                hint: 'Enter your email',
-                keyboardType: TextInputType.emailAddress,
-                prefixIcon: const Icon(
-                  Icons.email_outlined,
-                  size: 20,
-                  color: AppTheme.textLowEmphasis,
-                ),
-                validator: (val) {
-                  if (val == null || val.trim().isEmpty) {
-                    return 'Please enter your username';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              BlocBuilder<AuthBloc, AuthState>(
-                builder: (context, state) {
-                  return AppTextField(
-                    controller: passwordController,
-                    label: 'Password',
-                    hint: 'Enter your password',
-                    obscureText: !state.isPasswordVisible,
-                    prefixIcon: const Icon(
-                      Icons.lock_outline,
-                      size: 20,
-                      color: AppTheme.textLowEmphasis,
-                    ),
-                    suffixIcon: IconButton(
-                      onPressed: () => context
-                          .read<AuthBloc>()
-                          .add(const PasswordVisibilityToggled()),
-                      icon: Icon(
-                        state.isPasswordVisible
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                        size: 20,
-                        color: AppTheme.textLowEmphasis,
-                      ),
-                    ),
-                    validator: (val) {
-                      if (val == null || val.isEmpty) {
-                        return 'Please enter your password';
-                      }
-                      if (val.length < 4) {
-                        return 'Password is too short';
-                      }
-                      return null;
-                    },
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: Checkbox(
-                      value: rememberMe,
-                      onChanged: onRememberMeChanged,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Remember me',
+                )),
+            const SizedBox(height: 28),
+
+            // Email
+            _Field(
+              ctrl: emailCtrl,
+              focus: emailFocus,
+              label: 'Email',
+              hint: 'Enter your email',
+              keyboardType: TextInputType.emailAddress,
+              action: TextInputAction.next,
+              onSubmitted: (_) => passFocus.requestFocus(),
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'Required' : null,
+            ),
+            const SizedBox(height: 18),
+
+            // Password
+            BlocBuilder<AuthBloc, AuthState>(
+              builder: (context, state) => _Field(
+                ctrl: passCtrl,
+                focus: passFocus,
+                label: 'Password',
+                hint: 'Enter your password',
+                obscure: !state.isPasswordVisible,
+                action: TextInputAction.done,
+                onSubmitted: (_) => onSubmit(),
+                trailing: GestureDetector(
+                  onTap: () => context
+                      .read<AuthBloc>()
+                      .add(const PasswordVisibilityToggled()),
+                  child: Text(
+                    state.isPasswordVisible ? 'Hide' : 'Show',
                     style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: AppTheme.textHighEmphasis,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryBranding,
                     ),
                   ),
+                ),
+                validator: (v) =>
+                    (v == null || v.isEmpty) ? 'Required' : null,
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // Remember me
+            GestureDetector(
+              onTap: () => onRememberChanged(!rememberMe),
+              behavior: HitTestBehavior.opaque,
+              child: Row(
+                children: [
+                  _ToggleBox(checked: rememberMe),
+                  const SizedBox(width: 10),
+                  Text('Keep me signed in',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: AppTheme.textLowEmphasis,
+                      )),
                 ],
               ),
-              const SizedBox(height: 24),
-              BlocBuilder<AuthBloc, AuthState>(
-                builder: (context, state) {
-                  final isLoading = state is AuthLoading;
-                  return ElevatedButton(
-                    onPressed: isLoading ? null : onSubmit,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 52),
-                      backgroundColor: AppTheme.primaryBranding,
-                      disabledBackgroundColor:
-                          AppTheme.primaryBranding.withOpacity(0.6),
-                    ),
-                    child: isLoading
-                        ? const SizedBox(
-                            height: 22,
-                            width: 22,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2.5,
-                            ),
-                          )
-                        : Text(
-                            'Sign In',
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                  );
-                },
+            ),
+            const SizedBox(height: 28),
+
+            // Button
+            BlocBuilder<AuthBloc, AuthState>(
+              builder: (context, state) => _SubmitButton(
+                loading: state is AuthLoading,
+                onTap: state is AuthLoading ? null : onSubmit,
               ),
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Text Field
+// ─────────────────────────────────────────
+class _Field extends StatefulWidget {
+  final TextEditingController ctrl;
+  final FocusNode focus;
+  final String label;
+  final String hint;
+  final bool obscure;
+  final TextInputType keyboardType;
+  final TextInputAction action;
+  final ValueChanged<String>? onSubmitted;
+  final Widget? trailing;
+  final String? Function(String?)? validator;
+
+  const _Field({
+    required this.ctrl,
+    required this.focus,
+    required this.label,
+    required this.hint,
+    this.obscure = false,
+    this.keyboardType = TextInputType.text,
+    required this.action,
+    this.onSubmitted,
+    this.trailing,
+    this.validator,
+  });
+
+  @override
+  State<_Field> createState() => _FieldState();
+}
+
+class _FieldState extends State<_Field> {
+  bool _focused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.focus.addListener(_onFocus);
+  }
+
+  void _onFocus() {
+    if (mounted) setState(() => _focused = widget.focus.hasFocus);
+  }
+
+  @override
+  void dispose() {
+    widget.focus.removeListener(_onFocus);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              widget.label,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: _focused
+                    ? AppTheme.primaryBranding
+                    : AppTheme.textHighEmphasis,
+              ),
+            ),
+            if (widget.trailing != null) widget.trailing!,
+          ],
+        ),
+        const SizedBox(height: 7),
+        TextFormField(
+          controller: widget.ctrl,
+          focusNode: widget.focus,
+          obscureText: widget.obscure,
+          keyboardType: widget.keyboardType,
+          textInputAction: widget.action,
+          onFieldSubmitted: widget.onSubmitted,
+          validator: widget.validator,
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            color: AppTheme.textHighEmphasis,
+            fontWeight: FontWeight.w400,
           ),
+          decoration: InputDecoration(
+            hintText: widget.hint,
+            hintStyle: GoogleFonts.inter(
+              fontSize: 14,
+              color: AppTheme.textLowEmphasis.withOpacity(0.5),
+            ),
+            filled: true,
+            fillColor: _focused
+                ? AppTheme.primaryBranding.withOpacity(0.03)
+                : const Color(0xFFF7F8FA),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(
+                  color: AppTheme.primaryBranding, width: 1.6),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide:
+                  const BorderSide(color: AppTheme.statusError, width: 1.2),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide:
+                  const BorderSide(color: AppTheme.statusError, width: 1.6),
+            ),
+            errorStyle:
+                GoogleFonts.inter(fontSize: 11, color: AppTheme.statusError),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Toggle Box (Remember me)
+// ─────────────────────────────────────────
+class _ToggleBox extends StatelessWidget {
+  final bool checked;
+  const _ToggleBox({required this.checked});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      width: 18,
+      height: 18,
+      decoration: BoxDecoration(
+        color: checked ? AppTheme.primaryBranding : Colors.transparent,
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(
+          color:
+              checked ? AppTheme.primaryBranding : const Color(0xFFCBD5E1),
+          width: 1.5,
+        ),
+      ),
+      child: checked
+          ? const Icon(Icons.check_rounded, size: 12, color: Colors.white)
+          : null,
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Submit Button
+// ─────────────────────────────────────────
+class _SubmitButton extends StatefulWidget {
+  final bool loading;
+  final VoidCallback? onTap;
+  const _SubmitButton({required this.loading, required this.onTap});
+
+  @override
+  State<_SubmitButton> createState() => _SubmitButtonState();
+}
+
+class _SubmitButtonState extends State<_SubmitButton> {
+  bool _down = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _down = true),
+      onTapUp: (_) {
+        setState(() => _down = false);
+        widget.onTap?.call();
+      },
+      onTapCancel: () => setState(() => _down = false),
+      child: AnimatedScale(
+        scale: _down ? 0.975 : 1.0,
+        duration: const Duration(milliseconds: 90),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          height: 50,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: widget.loading
+                ? AppTheme.primaryBranding.withOpacity(0.55)
+                : AppTheme.primaryBranding,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          alignment: Alignment.center,
+          child: widget.loading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      color: Colors.white60, strokeWidth: 2),
+                )
+              : Text('Sign in',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    letterSpacing: 0.1,
+                  )),
         ),
       ),
     );

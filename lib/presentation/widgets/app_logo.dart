@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_theme.dart';
 
 class AppLogo extends StatelessWidget {
@@ -11,11 +12,15 @@ class AppLogo extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: AppTheme.primaryBranding,
         borderRadius: BorderRadius.circular(size * 0.25),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFF39C12), Color(0xFFE67E22)],
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryBranding.withOpacity(0.3),
+            color: AppTheme.actionAccent.withOpacity(0.4),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -24,11 +29,11 @@ class AppLogo extends StatelessWidget {
       child: Center(
         child: Text(
           'W',
-          style: TextStyle(
+          style: GoogleFonts.inter(
             fontSize: size * 0.5,
             fontWeight: FontWeight.w800,
-            color: AppTheme.actionAccent,
-            letterSpacing: -1,
+            color: Colors.white,
+            height: 1,
           ),
         ),
       ),
