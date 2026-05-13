@@ -12,6 +12,11 @@ import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/get_assigned_checklist_usecase.dart';
 import '../../presentation/auth/bloc/auth_bloc.dart';
 import '../../presentation/dashboard/bloc/checklist_bloc.dart';
+import '../../data/datasources/checklist_detail_remote_datasource.dart';
+import '../../data/repositories/checklist_detail_repository_impl.dart';
+import '../../domain/repositories/checklist_detail_repository.dart';
+import '../../domain/usecases/get_checklist_details_usecase.dart';
+import '../../presentation/checklist/bloc/checklist_detail_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -65,6 +70,21 @@ Future<void> initDependencies() async {
   // Checklist BLoC
   sl.registerFactory<ChecklistBloc>(
     () => ChecklistBloc(useCase: sl<GetAssignedChecklistUseCase>()),
+  );
+
+  // Checklist Detail
+  sl.registerLazySingleton<ChecklistDetailRemoteDataSource>(
+    () => ChecklistDetailRemoteDataSourceImpl(sl<DioClient>().dio),
+  );
+  sl.registerLazySingleton<ChecklistDetailRepository>(
+    () => ChecklistDetailRepositoryImpl(
+        remoteDataSource: sl<ChecklistDetailRemoteDataSource>()),
+  );
+  sl.registerLazySingleton<GetChecklistDetailsUseCase>(
+    () => GetChecklistDetailsUseCase(sl<ChecklistDetailRepository>()),
+  );
+  sl.registerFactory<ChecklistDetailBloc>(
+    () => ChecklistDetailBloc(useCase: sl<GetChecklistDetailsUseCase>()),
   );
 
   // Theme

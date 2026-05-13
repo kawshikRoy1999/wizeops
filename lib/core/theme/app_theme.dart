@@ -23,7 +23,7 @@ class AppTheme {
   static const Color darkCard     = Color(0xFF252D3D);
   static const Color darkBorder   = Color(0xFF2E3A4E);
   static const Color darkTextHigh = Color(0xFFECEFF4);
-  static const Color darkTextLow  = Color(0xFF7D8FA3);
+  static const Color darkTextLow  = Color(0xFF9BB3CB); // brightened for WCAG AA on dark cards
 
   static ThemeData get darkTheme {
     return ThemeData(

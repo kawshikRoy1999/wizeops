@@ -7,6 +7,7 @@ import '../../../domain/entities/user_entity.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../settings/screens/settings_screen.dart';
+import '../../checklist/screens/checklist_detail_screen.dart';
 import '../bloc/checklist_bloc.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -33,6 +34,8 @@ class DashboardScreen extends StatelessWidget {
 
   static String _formatDate(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+  static String formatDateStatic(DateTime d) => _formatDate(d);
 }
 
 class _DashboardView extends StatelessWidget {
@@ -60,7 +63,7 @@ class _DashboardView extends StatelessWidget {
           children: [
             _GreetingHeader(user: user, isDark: isDark),
             _DatePickerBar(user: user, isDark: isDark),
-            Expanded(child: _ChecklistBody(isDark: isDark)),
+            Expanded(child: _ChecklistBody(user: user, isDark: isDark)),
           ],
         ),
       ),
@@ -355,8 +358,9 @@ class _DatePickerBar extends StatelessWidget {
 // Checklist Body
 // ─────────────────────────────────────────
 class _ChecklistBody extends StatelessWidget {
+  final UserEntity user;
   final bool isDark;
-  const _ChecklistBody({required this.isDark});
+  const _ChecklistBody({required this.user, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -383,8 +387,10 @@ class _ChecklistBody extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
             itemCount: state.items.length,
             separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (_, i) => _ChecklistCard(
+            itemBuilder: (context, i) => _ChecklistCard(
               item: state.items[i],
+              user: user,
+              selectedDate: state.selectedDate,
               isDark: isDark,
             ),
           );
@@ -401,8 +407,15 @@ class _ChecklistBody extends StatelessWidget {
 // ─────────────────────────────────────────
 class _ChecklistCard extends StatelessWidget {
   final dynamic item;
+  final UserEntity user;
+  final DateTime selectedDate;
   final bool isDark;
-  const _ChecklistCard({required this.item, required this.isDark});
+  const _ChecklistCard({
+    required this.item,
+    required this.user,
+    required this.selectedDate,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -433,7 +446,17 @@ class _ChecklistCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          onTap: () {},
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ChecklistDetailScreen(
+                checklistAssignmentId: item.checklistAssignmentId as int,
+                companyId: user.companyId,
+                assignDate: DashboardScreen._formatDate(selectedDate),
+                checklistName: item.checklistName as String,
+              ),
+            ),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -508,17 +531,27 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final pendingFg =
+        isDark ? AppTheme.darkTextHigh : AppTheme.primaryBranding;
+    final pendingBg = isDark
+        ? AppTheme.darkBorder
+        : const Color(0xFFF0F4FF);
+    final pendingBorder = isDark
+        ? AppTheme.darkBorder
+        : AppTheme.primaryBranding.withOpacity(0.15);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: submitted
-            ? AppTheme.statusSuccess.withOpacity(0.1)
-            : const Color(0xFFF0F4FF),
+            ? AppTheme.statusSuccess.withOpacity(0.12)
+            : pendingBg,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: submitted
               ? AppTheme.statusSuccess.withOpacity(0.3)
-              : AppTheme.primaryBranding.withOpacity(0.15),
+              : pendingBorder,
         ),
       ),
       child: Text(
@@ -526,9 +559,7 @@ class _StatusBadge extends StatelessWidget {
         style: GoogleFonts.inter(
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: submitted
-              ? AppTheme.statusSuccess
-              : AppTheme.primaryBranding,
+          color: submitted ? AppTheme.statusSuccess : pendingFg,
         ),
       ),
     );

@@ -30,16 +30,22 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void initState() {
     super.initState();
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-    ));
     _anim = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 540));
     _fade = CurvedAnimation(parent: _anim, curve: Curves.easeOut);
     _slide = Tween(begin: const Offset(0, 0.04), end: Offset.zero)
         .animate(CurvedAnimation(parent: _anim, curve: Curves.easeOutCubic));
     _anim.forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+    ));
   }
 
   @override
@@ -65,6 +71,8 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthSuccess) {
@@ -83,7 +91,7 @@ class _LoginScreenState extends State<LoginScreen>
         }
       },
       child: Scaffold(
-        backgroundColor: AppTheme.scaffoldBg,
+        backgroundColor: isDark ? AppTheme.darkBg : AppTheme.scaffoldBg,
         body: SafeArea(
           child: FadeTransition(
             opacity: _fade,
@@ -95,10 +103,8 @@ class _LoginScreenState extends State<LoginScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // ── Brand Mark ──
-                      _BrandMark(),
+                      _BrandMark(isDark: isDark),
                       const SizedBox(height: 40),
-                      // ── Card ──
                       _LoginCard(
                         formKey: _formKey,
                         emailCtrl: _emailCtrl,
@@ -106,6 +112,7 @@ class _LoginScreenState extends State<LoginScreen>
                         emailFocus: _emailFocus,
                         passFocus: _passFocus,
                         rememberMe: _rememberMe,
+                        isDark: isDark,
                         onRememberChanged: (v) =>
                             setState(() => _rememberMe = v),
                         onSubmit: _submit,
@@ -115,7 +122,9 @@ class _LoginScreenState extends State<LoginScreen>
                         '© 2024 Wize Restaurant',
                         style: GoogleFonts.inter(
                           fontSize: 11,
-                          color: AppTheme.textLowEmphasis.withOpacity(0.55),
+                          color: isDark
+                              ? AppTheme.darkTextLow
+                              : AppTheme.textLowEmphasis.withOpacity(0.7),
                         ),
                       ),
                     ],
@@ -134,6 +143,9 @@ class _LoginScreenState extends State<LoginScreen>
 // Brand Mark
 // ─────────────────────────────────────────
 class _BrandMark extends StatelessWidget {
+  final bool isDark;
+  const _BrandMark({required this.isDark});
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -160,14 +172,14 @@ class _BrandMark extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: AppTheme.textHighEmphasis,
+              color: isDark ? AppTheme.darkTextHigh : AppTheme.textHighEmphasis,
               letterSpacing: -0.4,
             )),
         const SizedBox(height: 3),
         Text('Restaurant Operations',
             style: GoogleFonts.inter(
               fontSize: 12,
-              color: AppTheme.textLowEmphasis,
+              color: isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
             )),
       ],
     );
@@ -184,6 +196,7 @@ class _LoginCard extends StatelessWidget {
   final FocusNode emailFocus;
   final FocusNode passFocus;
   final bool rememberMe;
+  final bool isDark;
   final ValueChanged<bool> onRememberChanged;
   final VoidCallback onSubmit;
 
@@ -194,6 +207,7 @@ class _LoginCard extends StatelessWidget {
     required this.emailFocus,
     required this.passFocus,
     required this.rememberMe,
+    required this.isDark,
     required this.onRememberChanged,
     required this.onSubmit,
   });
@@ -204,20 +218,25 @@ class _LoginCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceWhite,
+        color: isDark ? AppTheme.darkCard : AppTheme.surfaceWhite,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF2C3E50).withOpacity(0.07),
-            blurRadius: 32,
-            offset: const Offset(0, 8),
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
+        border: isDark
+            ? Border.all(color: AppTheme.darkBorder)
+            : null,
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: const Color(0xFF2C3E50).withOpacity(0.07),
+                  blurRadius: 32,
+                  offset: const Offset(0, 8),
+                ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
       ),
       child: Form(
         key: formKey,
@@ -228,18 +247,20 @@ class _LoginCard extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.textHighEmphasis,
+                  color: isDark
+                      ? AppTheme.darkTextHigh
+                      : AppTheme.textHighEmphasis,
                   letterSpacing: -0.3,
                 )),
             const SizedBox(height: 4),
             Text('Sign in to continue',
                 style: GoogleFonts.inter(
                   fontSize: 13,
-                  color: AppTheme.textLowEmphasis,
+                  color:
+                      isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
                 )),
             const SizedBox(height: 28),
 
-            // Email
             _Field(
               ctrl: emailCtrl,
               focus: emailFocus,
@@ -247,13 +268,13 @@ class _LoginCard extends StatelessWidget {
               hint: 'Enter your email',
               keyboardType: TextInputType.emailAddress,
               action: TextInputAction.next,
+              isDark: isDark,
               onSubmitted: (_) => passFocus.requestFocus(),
               validator: (v) =>
                   (v == null || v.trim().isEmpty) ? 'Required' : null,
             ),
             const SizedBox(height: 18),
 
-            // Password
             BlocBuilder<AuthBloc, AuthState>(
               builder: (context, state) => _Field(
                 ctrl: passCtrl,
@@ -262,6 +283,7 @@ class _LoginCard extends StatelessWidget {
                 hint: 'Enter your password',
                 obscure: !state.isPasswordVisible,
                 action: TextInputAction.done,
+                isDark: isDark,
                 onSubmitted: (_) => onSubmit(),
                 trailing: GestureDetector(
                   onTap: () => context
@@ -272,7 +294,9 @@ class _LoginCard extends StatelessWidget {
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.primaryBranding,
+                      color: isDark
+                          ? AppTheme.darkTextHigh
+                          : AppTheme.primaryBranding,
                     ),
                   ),
                 ),
@@ -282,25 +306,25 @@ class _LoginCard extends StatelessWidget {
             ),
             const SizedBox(height: 18),
 
-            // Remember me
             GestureDetector(
               onTap: () => onRememberChanged(!rememberMe),
               behavior: HitTestBehavior.opaque,
               child: Row(
                 children: [
-                  _ToggleBox(checked: rememberMe),
+                  _ToggleBox(checked: rememberMe, isDark: isDark),
                   const SizedBox(width: 10),
                   Text('Keep me signed in',
                       style: GoogleFonts.inter(
                         fontSize: 13,
-                        color: AppTheme.textLowEmphasis,
+                        color: isDark
+                            ? AppTheme.darkTextLow
+                            : AppTheme.textLowEmphasis,
                       )),
                 ],
               ),
             ),
             const SizedBox(height: 28),
 
-            // Button
             BlocBuilder<AuthBloc, AuthState>(
               builder: (context, state) => _SubmitButton(
                 loading: state is AuthLoading,
@@ -323,6 +347,7 @@ class _Field extends StatefulWidget {
   final String label;
   final String hint;
   final bool obscure;
+  final bool isDark;
   final TextInputType keyboardType;
   final TextInputAction action;
   final ValueChanged<String>? onSubmitted;
@@ -334,6 +359,7 @@ class _Field extends StatefulWidget {
     required this.focus,
     required this.label,
     required this.hint,
+    required this.isDark,
     this.obscure = false,
     this.keyboardType = TextInputType.text,
     required this.action,
@@ -367,21 +393,25 @@ class _FieldState extends State<_Field> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final labelColor = _focused
+        ? (isDark ? AppTheme.darkTextHigh : AppTheme.primaryBranding)
+        : (isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              widget.label,
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 180),
               style: GoogleFonts.inter(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: _focused
-                    ? AppTheme.primaryBranding
-                    : AppTheme.textHighEmphasis,
+                color: labelColor,
               ),
+              child: Text(widget.label),
             ),
             if (widget.trailing != null) widget.trailing!,
           ],
@@ -397,28 +427,34 @@ class _FieldState extends State<_Field> {
           validator: widget.validator,
           style: GoogleFonts.inter(
             fontSize: 14,
-            color: AppTheme.textHighEmphasis,
+            color: isDark ? AppTheme.darkTextHigh : AppTheme.textHighEmphasis,
             fontWeight: FontWeight.w400,
           ),
           decoration: InputDecoration(
             hintText: widget.hint,
             hintStyle: GoogleFonts.inter(
               fontSize: 14,
-              color: AppTheme.textLowEmphasis.withOpacity(0.5),
+              color: isDark
+                  ? AppTheme.darkTextLow.withOpacity(0.6)
+                  : AppTheme.textLowEmphasis.withOpacity(0.5),
             ),
             filled: true,
-            fillColor: _focused
-                ? AppTheme.primaryBranding.withOpacity(0.03)
-                : const Color(0xFFF7F8FA),
+            fillColor: isDark
+                ? (_focused ? AppTheme.darkSurface : AppTheme.darkSurface)
+                : (_focused
+                    ? AppTheme.primaryBranding.withOpacity(0.03)
+                    : const Color(0xFFF7F8FA)),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+              borderSide: BorderSide(
+                  color: isDark ? AppTheme.darkBorder : const Color(0xFFE4E7EC)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+              borderSide: BorderSide(
+                  color: isDark ? AppTheme.darkBorder : const Color(0xFFE4E7EC)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
@@ -435,8 +471,8 @@ class _FieldState extends State<_Field> {
               borderSide:
                   const BorderSide(color: AppTheme.statusError, width: 1.6),
             ),
-            errorStyle:
-                GoogleFonts.inter(fontSize: 11, color: AppTheme.statusError),
+            errorStyle: GoogleFonts.inter(
+                fontSize: 11, color: AppTheme.statusError),
           ),
         ),
       ],
@@ -445,11 +481,12 @@ class _FieldState extends State<_Field> {
 }
 
 // ─────────────────────────────────────────
-// Toggle Box (Remember me)
+// Toggle Box
 // ─────────────────────────────────────────
 class _ToggleBox extends StatelessWidget {
   final bool checked;
-  const _ToggleBox({required this.checked});
+  final bool isDark;
+  const _ToggleBox({required this.checked, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -461,8 +498,11 @@ class _ToggleBox extends StatelessWidget {
         color: checked ? AppTheme.primaryBranding : Colors.transparent,
         borderRadius: BorderRadius.circular(5),
         border: Border.all(
-          color:
-              checked ? AppTheme.primaryBranding : const Color(0xFFCBD5E1),
+          color: checked
+              ? AppTheme.primaryBranding
+              : isDark
+                  ? AppTheme.darkTextLow
+                  : const Color(0xFFCBD5E1),
           width: 1.5,
         ),
       ),
