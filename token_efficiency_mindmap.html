@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Token Efficiency Mind Map</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0f1117;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    color: #e2e8f0;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  header {
+    text-align: center;
+    padding: 32px 20px 16px;
+  }
+
+  header h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #f8fafc;
+    letter-spacing: -0.5px;
+  }
+
+  header p {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-top: 6px;
+  }
+
+  .map-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  /* Center node */
+  .center-node {
+    background: linear-gradient(135deg, #1e40af, #7c3aed);
+    border-radius: 16px;
+    padding: 20px 28px;
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.3px;
+    box-shadow: 0 0 40px rgba(124,58,237,0.4);
+    margin: 0 auto;
+    max-width: 360px;
+  }
+
+  .center-node span {
+    font-size: 1.6rem;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  /* Branch grid */
+  .branches {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+
+  .branch {
+    background: #1e2330;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid #2d3448;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .branch:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  .branch-header {
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+
+  .branch-header .icon {
+    font-size: 1.2rem;
+  }
+
+  .branch-body {
+    padding: 0 18px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .leaf {
+    background: #252b3b;
+    border-radius: 8px;
+    padding: 10px 14px;
+    border-left: 3px solid transparent;
+    transition: background 0.15s;
+  }
+
+  .leaf:hover { background: #2e3547; }
+
+  .leaf .leaf-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    margin-bottom: 3px;
+  }
+
+  .leaf .leaf-desc {
+    font-size: 0.75rem;
+    color: #64748b;
+    line-height: 1.5;
+  }
+
+  .leaf .leaf-example {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    background: #1a1f2e;
+    border-radius: 4px;
+    padding: 5px 8px;
+    margin-top: 6px;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    border: 1px solid #2d3448;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* Color themes per branch */
+  .branch.blue .branch-header  { background: #1e3a5f; color: #93c5fd; }
+  .branch.blue .leaf            { border-left-color: #3b82f6; }
+
+  .branch.purple .branch-header { background: #2d1f4e; color: #c4b5fd; }
+  .branch.purple .leaf          { border-left-color: #8b5cf6; }
+
+  .branch.green .branch-header  { background: #14311e; color: #86efac; }
+  .branch.green .leaf           { border-left-color: #22c55e; }
+
+  .branch.amber .branch-header  { background: #3b2300; color: #fcd34d; }
+  .branch.amber .leaf           { border-left-color: #f59e0b; }
+
+  .branch.rose .branch-header   { background: #3b0f1a; color: #fda4af; }
+  .branch.rose .leaf            { border-left-color: #f43f5e; }
+
+  .branch.cyan .branch-header   { background: #0c2a35; color: #67e8f9; }
+  .branch.cyan .leaf            { border-left-color: #06b6d4; }
+
+  .branch.slate .branch-header  { background: #1e2535; color: #94a3b8; }
+  .branch.slate .leaf           { border-left-color: #64748b; }
+
+  .branch.orange .branch-header { background: #3b1a00; color: #fdba74; }
+  .branch.orange .leaf          { border-left-color: #f97316; }
+
+  /* Quick cheatsheet */
+  .cheatsheet {
+    background: #1e2330;
+    border: 1px solid #2d3448;
+    border-radius: 14px;
+    padding: 20px 24px;
+  }
+
+  .cheatsheet h2 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+  }
+
+  .cheat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+  }
+
+  .cheat-item {
+    background: #252b3b;
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .cheat-item .badge {
+    background: #1a1f2e;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .cheat-item .badge.do   { color: #4ade80; border: 1px solid #166534; }
+  .cheat-item .badge.dont { color: #f87171; border: 1px solid #7f1d1d; }
+
+  .cheat-item p {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    line-height: 1.4;
+  }
+
+  footer {
+    text-align: center;
+    padding: 24px;
+    font-size: 0.75rem;
+    color: #334155;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧠 AI Token Efficiency — Mind Map</h1>
+  <p>Strategies to minimize token usage with Claude, Gemini, and other AI CLIs</p>
+</header>
+
+<div class="map-container">
+
+  <!-- CENTER NODE -->
+  <div class="center-node">
+    <span>⚡</span>
+    Minimum Token Usage<br>with AI CLIs
+  </div>
+
+  <!-- BRANCHES GRID -->
+  <div class="branches">
+
+    <!-- 1. Prompt Design -->
+    <div class="branch blue">
+      <div class="branch-header"><span class="icon">✏️</span> Prompt Design</div>
+      <div class="branch-body">
+        <div class="leaf">
+          <div class="leaf-title">Be Specific, Not Verbose</div>
+          <div class="leaf-desc">State exactly what you need. Avoid filler phrases.</div>
+          <div class="leaf-example">✗ "Could you please help me with..."
+✓ "Fix null check in auth_bloc.dart:42"</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">Use Imperative Commands</div>
+          <div class="leaf-desc">Start with a verb. Skip pleasantries.</div>
+          <div class="leaf-example">✓ "List", "Fix", "Add", "Rename", "Explain"</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">One Task Per Prompt</div>
+          <div class="leaf-desc">Combine only when tasks are tightly related. Separate unrelated asks.</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">Specify Output Format</div>
+          <div class="leaf-desc">Tell the AI exactly what to return to avoid long explanations.</div>
+          <div class="leaf-example">✓ "Return only the dart code, no explanation"
+✓ "Answer in under 3 bullet points"</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Context Control -->
+    <div class="branch purple">
+      <div class="branch-header"><span class="icon">🗂️</span> Context Control</div>
+      <div class="branch-body">
+        <div class="leaf">
+          <div class="leaf-title">Paste Only Relevant Code</div>
+          <div class="leaf-desc">Don't dump whole files. Paste the function or block that matters.</div>
+          <div class="leaf-example">✓ "Here's the failing method: [paste 20 lines]"
+✗ "Here's my whole project..."</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">Use File:Line References</div>
+          <div class="leaf-desc">In Claude Code CLI, reference files by path — it reads them itself.</div>
+          <div class="leaf-example">✓ "Fix the bug in auth_bloc.dart line 42"</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">Clear Context Between Tasks</div>
+          <div class="leaf-desc">Start a new conversation for unrelated tasks. Old context burns tokens.</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">Use CLAUDE.md / System Prompts</div>
+          <div class="leaf-desc">Put persistent rules once in CLAUDE.md — not repeated in every message.</div>
+          <div class="leaf-example">✓ Add: "No comments. No trailing summaries."
+   to CLAUDE.md once.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Response Shaping -->
+    <div class="branch green">
+      <div class="branch-header"><span class="icon">📐</span> Response Shaping</div>
+      <div class="branch-body">
+        <div class="leaf">
+          <div class="leaf-title">Ask for Diffs, Not Full Files</div>
+          <div class="leaf-desc">Request only the changed lines, not the entire rewritten file.</div>
+          <div class="leaf-example">✓ "Show only the changed lines"
+✓ "Edit just the build method"</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">Suppress Explanations</div>
+          <div class="leaf-desc">Add "no explanation" or "code only" when you know what you want.</div>
+          <div class="leaf-example">✓ "Fix it. Code only. No comments."</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">Cap Response Length</div>
+          <div class="leaf-desc">Constrain output to reduce unnecessary elaboration.</div>
+          <div class="leaf-example">✓ "Answer in 1 sentence"
+✓ "Under 5 bullet points"
+✓ "Under 100 words"</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. CLI-Specific Tricks (Claude) -->
+    <div class="branch amber">
+      <div class="branch-header"><span class="icon">🤖</span> Claude CLI Tricks</div>
+      <div class="branch-body">
+        <div class="leaf">
+          <div class="leaf-title">Use --print / Non-Interactive Mode</div>
+          <div class="leaf-desc">Pipe a single prompt for one-shot answers — no session overhead.</div>
+          <div class="leaf-example">claude -p "explain this error: ..." --output-format text</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">Compact Sessions</div>
+          <div class="leaf-desc">Run /compact to summarize long conversations before continuing.</div>
+          <div class="leaf-example">✓ Type /compact inside Claude session</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">CLAUDE.md for Standing Rules</div>
+          <div class="leaf-desc">Offload repeated instructions to CLAUDE.md — loaded once, not repeated.</div>
+          <div class="leaf-example">Add: "No emojis. No summaries. Terse responses."</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">Use Haiku for Simple Tasks</div>
+          <div class="leaf-desc">Route trivial tasks (rename, format, grep) to claude-haiku-4-5 — cheaper & faster.</div>
+          <div class="leaf-example">claude --model claude-haiku-4-5 -p "rename foo to bar in x.dart"</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. CLI-Specific Tricks (Gemini) -->
+    <div class="branch cyan">
+      <div class="branch-header"><span class="icon">♊</span> Gemini CLI Tricks</div>
+      <div class="branch-body">
+        <div class="leaf">
+          <div class="leaf-title">Use Flash for Low-Stakes Tasks</div>
+          <div class="leaf-desc">gemini-2.0-flash uses far fewer tokens than Pro for simple tasks.</div>
+          <div class="leaf-example">gemini --model gemini-2.0-flash -p "summarize this"</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">Pipe Input via stdin</div>
+          <div class="leaf-desc">Avoid re-explaining context — pipe the file directly.</div>
+          <div class="leaf-example">cat main.dart | gemini -p "find bugs"</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">Set GEMINI.md / system instruction</div>
+          <div class="leaf-desc">Use system instructions once to avoid repeating tone/format rules per prompt.</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">Limit Output Tokens</div>
+          <div class="leaf-desc">Pass maxOutputTokens in API calls or use --max-output-tokens flag.</div>
+          <div class="leaf-example">gemini -p "..." --max-output-tokens 200</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. Reuse & Caching -->
+    <div class="branch rose">
+      <div class="branch-header"><span class="icon">♻️</span> Reuse & Caching</div>
+      <div class="branch-body">
+        <div class="leaf">
+          <div class="leaf-title">Prompt Caching (Claude API)</div>
+          <div class="leaf-desc">Mark stable context with cache_control. Cached tokens cost 90% less.</div>
+          <div class="leaf-example">Add "cache_control": {"type": "ephemeral"}
+to large static system prompt blocks.</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">Reuse Session Within 5 Min</div>
+          <div class="leaf-desc">Claude's prompt cache TTL is 5 min. Send follow-ups quickly to hit cache.</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">Save Common Prompts as Scripts</div>
+          <div class="leaf-desc">Store refined prompts in shell scripts — reuse without retyping.</div>
+          <div class="leaf-example">#!/bin/bash
+claude -p "Review $1 for security issues. Code only."</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. Task Routing -->
+    <div class="branch orange">
+      <div class="branch-header"><span class="icon">🔀</span> Smart Task Routing</div>
+      <div class="branch-body">
+        <div class="leaf">
+          <div class="leaf-title">Use CLI Tools Instead of AI</div>
+          <div class="leaf-desc">Don't ask AI to grep, find files, or run commands it can't execute.</div>
+          <div class="leaf-example">✗ "Find all dart files with BlocBuilder"
+✓ grep -r "BlocBuilder" lib/ --include="*.dart"</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">Tier Your Tasks by Complexity</div>
+          <div class="leaf-desc">Simple → Haiku/Flash. Medium → Sonnet. Complex → Opus/Pro.</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">Batch Small Tasks Together</div>
+          <div class="leaf-desc">Group 3–4 tiny related tasks in one prompt instead of 4 calls.</div>
+          <div class="leaf-example">✓ "In auth_bloc.dart: 1) rename foo→bar
+2) remove unused import 3) add const"</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 8. Habits & Workflow -->
+    <div class="branch slate">
+      <div class="branch-header"><span class="icon">🔄</span> Habits & Workflow</div>
+      <div class="branch-body">
+        <div class="leaf">
+          <div class="leaf-title">Draft Prompts Before Sending</div>
+          <div class="leaf-desc">Write, trim, then send. Remove "I was wondering if..." type filler.</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">Prefer CLI over Chat UI for Code</div>
+          <div class="leaf-desc">Claude Code / Gemini CLI read files directly — no copy-pasting needed.</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">Never Re-explain Done Work</div>
+          <div class="leaf-desc">Reference what was done by file/line, not by retelling it.</div>
+          <div class="leaf-example">✓ "Continue from auth_bloc.dart — now do the same for dashboard_bloc.dart"</div>
+        </div>
+        <div class="leaf">
+          <div class="leaf-title">Use /compact Before Big Tasks</div>
+          <div class="leaf-desc">Compact your session history before starting a new large feature.</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end branches -->
+
+  <!-- QUICK CHEATSHEET -->
+  <div class="cheatsheet">
+    <h2>⚡ Quick Cheat Sheet — Do / Don't</h2>
+    <div class="cheat-grid">
+      <div class="cheat-item"><span class="badge do">DO</span><p>Reference file:line instead of pasting full files</p></div>
+      <div class="cheat-item"><span class="badge dont">DON'T</span><p>Paste entire files or project structures unless asked</p></div>
+      <div class="cheat-item"><span class="badge do">DO</span><p>Say "code only, no explanation" for known tasks</p></div>
+      <div class="cheat-item"><span class="badge dont">DON'T</span><p>Ask open-ended "what do you think about my whole app?"</p></div>
+      <div class="cheat-item"><span class="badge do">DO</span><p>Use CLAUDE.md for rules that apply every session</p></div>
+      <div class="cheat-item"><span class="badge dont">DON'T</span><p>Repeat "always use Inter font, no comments" every prompt</p></div>
+      <div class="cheat-item"><span class="badge do">DO</span><p>Use /compact when conversation gets long</p></div>
+      <div class="cheat-item"><span class="badge dont">DON'T</span><p>Keep one huge session for completely unrelated tasks</p></div>
+      <div class="cheat-item"><span class="badge do">DO</span><p>Route simple tasks to Haiku / Flash models</p></div>
+      <div class="cheat-item"><span class="badge dont">DON'T</span><p>Use Opus/Pro for renaming a variable</p></div>
+      <div class="cheat-item"><span class="badge do">DO</span><p>Send follow-up prompts within 5 min to hit cache</p></div>
+      <div class="cheat-item"><span class="badge dont">DON'T</span><p>Leave sessions idle 10+ min then re-ask the same context</p></div>
+    </div>
+  </div>
+
+</div><!-- end map-container -->
+
+<footer>Token Efficiency Mind Map · WizeOps Dev Toolkit · 2024</footer>
+
+</body>
+</html>
