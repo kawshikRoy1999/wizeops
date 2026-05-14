@@ -1,16 +1,29 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:image_picker/image_picker.dart'; // XFile handles content:// URIs on Android
+import '../../core/constants/api_constants.dart';
 import '../models/upload_file_model.dart';
 
 abstract class UploadFileDataSource {
   /// Uploads a single file for a given checklist label.
   /// Maps to: POST /Setting/UploadCheckListFile
-  /// Form fields: files (IFormFile), checklistIds (int)
+  /// Body (JSON):
+  ///   file               → base64-encoded byte[]
+  ///   checklistIds       → int
+  ///   ImageFilePath      → user's existing image path
+  ///   ImageType          → 6 (hardcoded)
+  ///   CompanyId          → user's company id
+  ///   Name               → file display name
+  ///   FileName           → file name with extension
+  ///   ContentDescription → content-disposition header value
+  ///   ContentType        → MIME type
   Future<UploadedFileModel> uploadFile({
     required int labelId,
     required String filePath,
     required String fileName,
     required String contentType,
+    required int companyId,
+    required String imageFilePath,
   });
 }
 
@@ -24,33 +37,39 @@ class UploadFileDataSourceImpl implements UploadFileDataSource {
     required String filePath,
     required String fileName,
     required String contentType,
+    required int companyId,
+    required String imageFilePath,
   }) async {
-    // Build multipart form exactly as the .NET endpoint expects:
-    //   files        → IFormFileCollection (Request.Form.Files)
-    //   checklistIds → StringValues (Request.Form["checklistIds"])
-    final formData = FormData();
+    // XFile handles both regular file paths AND Android content:// URIs.
+    // dart:io File() only works with real paths and throws
+    // "Invalid URI: The hostname could not be parsed" for content:// URIs.
+    final bytes = await XFile(filePath).readAsBytes();
+    final base64File = base64Encode(bytes);
 
-    formData.files.add(MapEntry(
-      'files',
-      await MultipartFile.fromFile(
-        filePath,
-        filename: fileName,
-        contentType: DioMediaType.parse(contentType),
-      ),
-    ));
+    // Name = display name (filename without extension)
+    final name = fileName.contains('.')
+        ? fileName.substring(0, fileName.lastIndexOf('.'))
+        : fileName;
 
-    formData.fields.add(MapEntry('checklistIds', labelId.toString()));
+    // ContentDescription mimics the Content-Disposition header value
+    final contentDescription = 'attachment; filename="$fileName"';
 
-    // No Options override needed — with Content-Type removed from DioClient's
-    // global headers, Dio auto-sets 'multipart/form-data; boundary=...'
-    // correctly when the data is FormData.
+    final body = {
+      'file': base64File,
+      'checklistIds': labelId,
+      // Send null when empty — .NET throws UriFormatException on new Uri("")
+      'ImageFilePath': ApiConstants.uploadImageBasePath,
+      'ImageType': 6,
+      'CompanyId': companyId,
+      'Name': fileName,
+      'FileName': fileName,
+      'ContentDescription': contentDescription,
+      'ContentType': contentType,
+    };
+
     final response = await _dio.post(
       '/Setting/UploadCheckListFile',
-      data: formData,
-      options: Options(
-        contentType: 'multipart/form-data',
-        headers: {'Content-Type': null}, // remove global json header
-      ),
+      data: body,
     );
 
     final responseData = response.data is String
@@ -59,13 +78,13 @@ class UploadFileDataSourceImpl implements UploadFileDataSource {
 
     final parsed = UploadFileResponse.fromJson(responseData);
 
-    if (!parsed.status || parsed.data.isEmpty) {
+    if (!parsed.status || parsed.data == null) {
       throw Exception(parsed.message.isNotEmpty
           ? parsed.message
           : 'Upload failed — no data returned');
     }
 
-    return parsed.data.first;
+    return parsed.data!;
   }
 
   /// Detect MIME type from file extension.

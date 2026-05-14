@@ -1343,10 +1343,10 @@ class _AttachmentSheet extends StatelessWidget {
     required this.blocContext,
   });
 
-  void _dispatch(BuildContext ctx, String filePath) {
-    blocContext
-        .read<ChecklistDetailBloc>()
-        .add(UploadFile(labelId: labelId, filePath: filePath));
+  void _dispatch(BuildContext ctx, String filePath, {String? fileName}) {
+    blocContext.read<ChecklistDetailBloc>().add(
+          UploadFile(labelId: labelId, filePath: filePath, fileName: fileName),
+        );
     Navigator.pop(ctx);
   }
 
@@ -1354,7 +1354,12 @@ class _AttachmentSheet extends StatelessWidget {
     final picker = ImagePicker();
     final photo =
         await picker.pickImage(source: ImageSource.camera, imageQuality: 80);
-    if (photo != null && ctx.mounted) _dispatch(ctx, photo.path);
+    if (photo != null && ctx.mounted) {
+      // Generate a readable timestamped name — camera temp paths are meaningless
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      final fileName = 'photo_$ts.jpg';
+      _dispatch(ctx, photo.path, fileName: fileName);
+    }
   }
 
   Future<void> _browseFiles(BuildContext ctx) async {
@@ -1362,8 +1367,12 @@ class _AttachmentSheet extends StatelessWidget {
       allowMultiple: false,
       type: FileType.any,
     );
-    if (result != null && result.files.single.path != null && ctx.mounted) {
-      _dispatch(ctx, result.files.single.path!);
+    if (result != null && ctx.mounted) {
+      final file = result.files.single;
+      if (file.path != null) {
+        // Use the original filename from the picker (already meaningful)
+        _dispatch(ctx, file.path!, fileName: file.name);
+      }
     }
   }
 

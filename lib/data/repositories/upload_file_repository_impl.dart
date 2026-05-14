@@ -14,6 +14,8 @@ class UploadFileRepositoryImpl implements UploadFileRepository {
     required String filePath,
     required String fileName,
     required String contentType,
+    required int companyId,
+    required String imageFilePath,
   }) async {
     try {
       final result = await dataSource.uploadFile(
@@ -21,6 +23,8 @@ class UploadFileRepositoryImpl implements UploadFileRepository {
         filePath: filePath,
         fileName: fileName,
         contentType: contentType,
+        companyId: companyId,
+        imageFilePath: imageFilePath,
       );
       return Right(result.imagePath);
     } on DioException catch (e) {

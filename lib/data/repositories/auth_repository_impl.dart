@@ -98,6 +98,7 @@ class AuthRepositoryImpl implements AuthRepository {
       'currencyCode': model.currencyCode,
       'dateFormat': model.dateFormat,
       'posToken': model.posToken,
+      'imageFilePath': model.imageFilePath,
     });
     await secureStorage.write(key: AppConstants.userKey, value: json);
   }

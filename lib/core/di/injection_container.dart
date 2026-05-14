@@ -103,6 +103,7 @@ Future<void> initDependencies() async {
     () => ChecklistDetailBloc(
       useCase: sl<GetChecklistDetailsUseCase>(),
       uploadUseCase: sl<UploadChecklistFileUseCase>(),
+      authRepository: sl<AuthRepository>(),
     ),
   );
 

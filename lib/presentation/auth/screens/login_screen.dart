@@ -106,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _BrandMark(isDark: isDark),
+                      const _BrandMark(isDark: isDark),
                       const SizedBox(height: 40),
                       _LoginCard(
                         formKey: _formKey,

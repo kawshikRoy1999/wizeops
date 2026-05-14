@@ -7,12 +7,16 @@ class UploadChecklistFileParams {
   final String filePath;
   final String fileName;
   final String contentType;
+  final int companyId;
+  final String imageFilePath;
 
   const UploadChecklistFileParams({
     required this.labelId,
     required this.filePath,
     required this.fileName,
     required this.contentType,
+    required this.companyId,
+    required this.imageFilePath,
   });
 }
 
@@ -26,5 +30,7 @@ class UploadChecklistFileUseCase {
         filePath: params.filePath,
         fileName: params.fileName,
         contentType: params.contentType,
+        companyId: params.companyId,
+        imageFilePath: params.imageFilePath,
       );
 }

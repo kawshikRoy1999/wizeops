@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/datasources/upload_file_datasource.dart';
 import '../../../domain/entities/checklist_detail_entity.dart';
+import '../../../domain/repositories/auth_repository.dart';
 import '../../../domain/usecases/get_checklist_details_usecase.dart';
 import '../../../domain/usecases/upload_checklist_file_usecase.dart';
 
@@ -13,10 +14,16 @@ class ChecklistDetailBloc
     extends Bloc<ChecklistDetailEvent, ChecklistDetailState> {
   final GetChecklistDetailsUseCase useCase;
   final UploadChecklistFileUseCase uploadUseCase;
+  final AuthRepository authRepository;
+
+  // Cached user fields — set during _onLoad, used by _onUploadFile
+  int _companyId = 0;
+  String _imageFilePath = '';
 
   ChecklistDetailBloc({
     required this.useCase,
     required this.uploadUseCase,
+    required this.authRepository,
   }) : super(const ChecklistDetailInitial()) {
     on<LoadChecklistDetails>(_onLoad);
     on<UpdateFieldValue>(_onUpdateField);
@@ -29,6 +36,12 @@ class ChecklistDetailBloc
   Future<void> _onLoad(
       LoadChecklistDetails event, Emitter<ChecklistDetailState> emit) async {
     emit(const ChecklistDetailLoading());
+
+    // Cache user data for later use during upload
+    _companyId = event.companyId;
+    final user = await authRepository.getCachedUser();
+    _imageFilePath = user?.imageFilePath ?? '';
+
     final result = await useCase(ChecklistDetailParams(
       checklistAssignmentId: event.checklistAssignmentId,
       companyId: event.companyId,
@@ -64,7 +77,9 @@ class ChecklistDetailBloc
       final decoded = jsonDecode(json);
       if (decoded is List) {
         return decoded
-            .map((e) => e is Map ? (e['imagePath'] ?? e['ImagePath'] ?? '').toString() : e.toString())
+            .map((e) => e is Map
+                ? (e['imagePath'] ?? e['ImagePath'] ?? '').toString()
+                : e.toString())
             .where((s) => s.isNotEmpty)
             .toList();
       }
@@ -118,8 +133,11 @@ class ChecklistDetailBloc
     if (current is! ChecklistDetailLoaded) return;
 
     final filePath = event.filePath;
-    final fileName = filePath.split('/').last.split('\\').last;
-    final contentType = UploadFileDataSourceImpl.mimeFromPath(filePath);
+    // Use explicit name if provided (e.g. camera shot), else derive from path
+    final fileName = (event.fileName != null && event.fileName!.isNotEmpty)
+        ? event.fileName!
+        : filePath.split('/').last.split('\\').last;
+    final contentType = UploadFileDataSourceImpl.mimeFromPath(fileName);
 
     // Mark as uploading
     final uploadingSet = Set<int>.from(current.uploadingLabels)
@@ -131,20 +149,23 @@ class ChecklistDetailBloc
       filePath: filePath,
       fileName: fileName,
       contentType: contentType,
+      companyId: _companyId,
+      imageFilePath: _imageFilePath,
     ));
 
     // Re-read state after async gap
     final after = state;
     if (after is! ChecklistDetailLoaded) return;
 
-    final doneSet = Set<int>.from(after.uploadingLabels)..remove(event.labelId);
+    final doneSet = Set<int>.from(after.uploadingLabels)
+      ..remove(event.labelId);
 
     result.fold(
       (failure) {
-        // Emit error signal via uploadError field; UI reads via BlocListener
         emit(after.copyWith(
           uploadingLabels: doneSet,
-          uploadError: UploadError(labelId: event.labelId, message: failure.message),
+          uploadError:
+              UploadError(labelId: event.labelId, message: failure.message),
         ));
       },
       (cdnUrl) {

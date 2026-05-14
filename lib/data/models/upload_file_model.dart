@@ -4,6 +4,15 @@ String _str(dynamic v) {
   return v.toString();
 }
 
+bool _parseBool(dynamic v) {
+  if (v == null) return false;
+  if (v is bool) return v;
+  if (v is int) return v != 0;
+  if (v is String) return v == '1' || v.toLowerCase() == 'true';
+  return false;
+}
+
+/// Maps to C#: ResUploadImage
 class UploadedFileModel {
   final String imagePath;
   final String imageName;
@@ -26,29 +35,32 @@ class UploadedFileModel {
       );
 }
 
+/// Maps to C#: Response<ResUploadImage>
+/// { "status": bool, "message": string, "data": ResUploadImage }
 class UploadFileResponse {
   final bool status;
   final String message;
-  final List<UploadedFileModel> data;
+  final UploadedFileModel? data;
 
   const UploadFileResponse({
     required this.status,
     required this.message,
-    required this.data,
+    this.data,
   });
 
   factory UploadFileResponse.fromJson(Map<String, dynamic> json) {
-    // 'data' may be a List or a single object — handle both
     final raw = json['data'] ?? json['Data'];
-    final List<dynamic> rawList =
-        raw is List ? raw : (raw != null ? [raw] : []);
+
+    // data is a single ResUploadImage object (not a list)
+    UploadedFileModel? parsed;
+    if (raw is Map<String, dynamic>) {
+      parsed = UploadedFileModel.fromJson(raw);
+    }
 
     return UploadFileResponse(
-      status: (json['status'] ?? json['Status']) as bool? ?? false,
+      status: _parseBool(json['status'] ?? json['Status']),
       message: _str(json['message'] ?? json['Message']),
-      data: rawList
-          .map((e) => UploadedFileModel.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      data: parsed,
     );
   }
 }

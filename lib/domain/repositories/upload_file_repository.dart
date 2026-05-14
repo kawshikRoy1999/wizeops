@@ -7,5 +7,7 @@ abstract class UploadFileRepository {
     required String filePath,
     required String fileName,
     required String contentType,
+    required int companyId,
+    required String imageFilePath,
   });
 }

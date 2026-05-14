@@ -18,6 +18,7 @@ class UserEntity extends Equatable {
   final String? currencyCode;
   final String? dateFormat;
   final String posToken;
+  final String imageFilePath;
 
   const UserEntity({
     required this.id,
@@ -37,6 +38,7 @@ class UserEntity extends Equatable {
     this.currencyCode,
     this.dateFormat,
     required this.posToken,
+    this.imageFilePath = '',
   });
 
   String get fullName => '$firstName $lastName'.trim();

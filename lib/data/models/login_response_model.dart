@@ -40,6 +40,7 @@ class UserDataModel {
   final String? currencyCode;
   final String? dateFormat;
   final String posToken;
+  final String imageFilePath;
 
   const UserDataModel({
     required this.id,
@@ -59,6 +60,7 @@ class UserDataModel {
     this.currencyCode,
     this.dateFormat,
     required this.posToken,
+    this.imageFilePath = '',
   });
 
   factory UserDataModel.fromJson(Map<String, dynamic> json) {
@@ -80,6 +82,10 @@ class UserDataModel {
       currencyCode: json['currencyCode'] as String?,
       dateFormat: json['dateFormat'] as String?,
       posToken: json['posToken'] as String? ?? '',
+      imageFilePath: json['imagePath'] as String?
+          ?? json['ImageFilePath'] as String?
+          ?? json['imageFilePath'] as String?
+          ?? '',
     );
   }
 
@@ -101,5 +107,6 @@ class UserDataModel {
         currencyCode: currencyCode,
         dateFormat: dateFormat,
         posToken: posToken,
+        imageFilePath: imageFilePath,
       );
 }

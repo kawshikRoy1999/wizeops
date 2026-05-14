@@ -64,9 +64,16 @@ class UpdateFileValue extends ChecklistDetailEvent {
 class UploadFile extends ChecklistDetailEvent {
   final int labelId;
   final String filePath;
+  /// Explicit filename to use (e.g. timestamped camera shot name).
+  /// If null the bloc falls back to the last path segment.
+  final String? fileName;
 
-  const UploadFile({required this.labelId, required this.filePath});
+  const UploadFile({
+    required this.labelId,
+    required this.filePath,
+    this.fileName,
+  });
 
   @override
-  List<Object> get props => [labelId, filePath];
+  List<Object> get props => [labelId, filePath, fileName ?? ''];
 }
