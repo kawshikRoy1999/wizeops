@@ -443,20 +443,24 @@ class _QuestionCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? AppTheme.darkCard : AppTheme.surfaceWhite,
+        color: isReadOnly
+            ? (isDark ? const Color(0xFF1C1F26) : const Color(0xFFF7F9FC))
+            : (isDark ? AppTheme.darkCard : AppTheme.surfaceWhite),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: answered
-              ? AppTheme.statusSuccess.withOpacity(isDark ? 0.25 : 0.2)
-              : isDark
-                  ? AppTheme.darkBorder
-                  : const Color(0xFFE8ECF0),
+          color: isReadOnly
+              ? (isDark ? const Color(0xFF2E3340) : const Color(0xFFDDE3EC))
+              : answered
+                  ? (isDark ? const Color(0xFF2E6B45) : const Color(0xFFB2DFCB))
+                  : isDark
+                      ? AppTheme.darkBorder
+                      : const Color(0xFFE8ECF0),
         ),
-        boxShadow: isDark
+        boxShadow: isDark || isReadOnly
             ? []
             : [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: const Color(0x08000000),
                   blurRadius: 6,
                   offset: const Offset(0, 2),
                 ),
@@ -464,133 +468,230 @@ class _QuestionCard extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        child: isReadOnly
+            ? _buildReadOnlyContent(context)
+            : _buildEditableContent(context, answered),
+      ),
+    );
+  }
+
+  // ── Read-only layout: clean data display, no form controls ──
+  Widget _buildReadOnlyContent(BuildContext context) {
+    final hasNote = currentNote.isNotEmpty;
+    final hasFiles = filePaths.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Question label
+        Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Question header
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: answered
-                        ? AppTheme.statusSuccess.withOpacity(0.12)
-                        : AppTheme.primaryBranding.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(6),
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF2A2D36)
+                    : const Color(0xFFE8ECF4),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Center(
+                child: Text(
+                  '${index + 1}',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: isDark
+                        ? AppTheme.darkTextHigh
+                        : AppTheme.textHighEmphasis,
                   ),
-                  child: Center(
-                    child: Text(
-                      '${index + 1}',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: answered
-                            ? AppTheme.statusSuccess
-                            : AppTheme.primaryBranding,
-                      ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    detail.parentLabelName,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: isDark
+                          ? AppTheme.darkTextHigh
+                          : AppTheme.textHighEmphasis,
+                      height: 1.4,
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        detail.parentLabelName,
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: isDark
-                              ? AppTheme.darkTextHigh
-                              : AppTheme.textHighEmphasis,
-                          height: 1.4,
-                        ),
+                  if (detail.checklistDesc.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      detail.checklistDesc,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: isDark
+                            ? AppTheme.darkTextLow
+                            : AppTheme.textLowEmphasis,
                       ),
-                      if (detail.checklistDesc.isNotEmpty) ...[
-                        const SizedBox(height: 3),
-                        Text(
-                          detail.checklistDesc,
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: isDark
-                                ? AppTheme.darkTextLow
-                                : AppTheme.textLowEmphasis,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 6),
-                // Field type chip
-                _FieldTypeChip(type: detail.fieldType, isDark: isDark),
-              ],
-            ),
-            const SizedBox(height: 14),
-            // Dynamic input
-            _buildField(context),
-            const SizedBox(height: 14),
-            _Divider(isDark: isDark),
-            const SizedBox(height: 12),
-            // Remarks / Notes textarea
-            _NoteField(
-              labelId: detail.parentChecklistLabelId,
-              value: currentNote,
-              isReadOnly: isReadOnly,
-              isDark: isDark,
-            ),
-            const SizedBox(height: 12),
-            // Raise a Flag + Attachments row
-            Row(
-              children: [
-                Expanded(
-                  child: _RaiseFlagCheckbox(
-                    labelId: detail.parentChecklistLabelId,
-                    isFlagged: isFlagged,
-                    isReadOnly: isReadOnly,
-                    isDark: isDark,
-                  ),
-                ),
-                // In read-only mode, only show attachment button when there
-                // are already files attached (so user can still tap to view)
-                if (!isReadOnly || filePaths.isNotEmpty) ...[
-                  const SizedBox(width: 10),
-                  BlocBuilder<ChecklistDetailBloc, ChecklistDetailState>(
-                    buildWhen: (p, c) =>
-                        c is ChecklistDetailLoaded &&
-                        p is ChecklistDetailLoaded &&
-                        p.isUploading(detail.parentChecklistLabelId) !=
-                            c.isUploading(detail.parentChecklistLabelId),
-                    builder: (context, state) {
-                      final uploading = state is ChecklistDetailLoaded &&
-                          state.isUploading(detail.parentChecklistLabelId);
-                      return _AttachmentButton(
-                        labelId: detail.parentChecklistLabelId,
-                        filePaths: filePaths,
-                        isReadOnly: isReadOnly,
-                        isUploading: uploading,
-                        isDark: isDark,
-                      );
-                    },
-                  ),
+                    ),
+                  ],
                 ],
-              ],
-            ),
-            if (filePaths.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              _AttachmentList(
-                labelId: detail.parentChecklistLabelId,
-                filePaths: filePaths,
-                isReadOnly: isReadOnly,
-                isDark: isDark,
               ),
-            ],
+            ),
           ],
         ),
-      ),
+        const SizedBox(height: 10),
+        // Answer value display
+        _ReadOnlyAnswerDisplay(
+          value: currentValue,
+          fieldType: detail.fieldType,
+          isDark: isDark,
+        ),
+        // Note — only if non-empty
+        if (hasNote) ...[
+          const SizedBox(height: 10),
+          _ReadOnlyNote(note: currentNote, isDark: isDark),
+        ],
+        // Flag — only if raised
+        if (isFlagged) ...[
+          const SizedBox(height: 8),
+          _FlagChip(isDark: isDark),
+        ],
+        // Files
+        if (hasFiles) ...[
+          const SizedBox(height: 10),
+          _AttachmentList(
+            labelId: detail.parentChecklistLabelId,
+            filePaths: filePaths,
+            isReadOnly: true,
+            isDark: isDark,
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ── Editable layout: full form controls ──
+  Widget _buildEditableContent(BuildContext context, bool answered) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Question header
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: answered
+                    ? AppTheme.statusSuccess.withOpacity(0.12)
+                    : AppTheme.primaryBranding.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Center(
+                child: Text(
+                  '${index + 1}',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: answered
+                        ? AppTheme.statusSuccess
+                        : AppTheme.primaryBranding,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    detail.parentLabelName,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: isDark
+                          ? AppTheme.darkTextHigh
+                          : AppTheme.textHighEmphasis,
+                      height: 1.4,
+                    ),
+                  ),
+                  if (detail.checklistDesc.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      detail.checklistDesc,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: isDark
+                            ? AppTheme.darkTextLow
+                            : AppTheme.textLowEmphasis,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            _FieldTypeChip(type: detail.fieldType, isDark: isDark),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _buildField(context),
+        const SizedBox(height: 14),
+        _Divider(isDark: isDark),
+        const SizedBox(height: 12),
+        _NoteField(
+          labelId: detail.parentChecklistLabelId,
+          value: currentNote,
+          isReadOnly: false,
+          isDark: isDark,
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _RaiseFlagCheckbox(
+                labelId: detail.parentChecklistLabelId,
+                isFlagged: isFlagged,
+                isReadOnly: false,
+                isDark: isDark,
+              ),
+            ),
+            const SizedBox(width: 10),
+            BlocBuilder<ChecklistDetailBloc, ChecklistDetailState>(
+              buildWhen: (p, c) =>
+                  c is ChecklistDetailLoaded &&
+                  p is ChecklistDetailLoaded &&
+                  p.isUploading(detail.parentChecklistLabelId) !=
+                      c.isUploading(detail.parentChecklistLabelId),
+              builder: (context, state) {
+                final uploading = state is ChecklistDetailLoaded &&
+                    state.isUploading(detail.parentChecklistLabelId);
+                return _AttachmentButton(
+                  labelId: detail.parentChecklistLabelId,
+                  filePaths: filePaths,
+                  isReadOnly: false,
+                  isUploading: uploading,
+                  isDark: isDark,
+                );
+              },
+            ),
+          ],
+        ),
+        if (filePaths.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          _AttachmentList(
+            labelId: detail.parentChecklistLabelId,
+            filePaths: filePaths,
+            isReadOnly: false,
+            isDark: isDark,
+          ),
+        ],
+      ],
     );
   }
 
@@ -640,6 +741,215 @@ class _QuestionCard extends StatelessWidget {
                   labelId: detail.parentChecklistLabelId, value: v)),
         );
     }
+  }
+}
+
+// ─────────────────────────────────────────
+// Read-Only Answer Display
+// ─────────────────────────────────────────
+class _ReadOnlyAnswerDisplay extends StatelessWidget {
+  final String value;
+  final FieldType fieldType;
+  final bool isDark;
+
+  const _ReadOnlyAnswerDisplay({
+    required this.value,
+    required this.fieldType,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (value.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF232730) : const Color(0xFFF0F2F5),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isDark ? const Color(0xFF333848) : const Color(0xFFDDE3EC),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.remove_rounded,
+                size: 14,
+                color: isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis),
+            const SizedBox(width: 6),
+            Text(
+              'No answer recorded',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+                color: isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (fieldType == FieldType.textBox) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF232730) : const Color(0xFFEEF2F7),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isDark ? const Color(0xFF333848) : const Color(0xFFCDD5E0),
+          ),
+        ),
+        child: Text(
+          value,
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            color: isDark ? AppTheme.darkTextHigh : AppTheme.textHighEmphasis,
+            height: 1.55,
+          ),
+        ),
+      );
+    }
+
+    // Radio, Dropdown, Checkbox — render as filled chips
+    final items = fieldType == FieldType.checkbox
+        ? value.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList()
+        : [value];
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      children: items.map((item) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1A3329) : const Color(0xFFE4F4EB),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark ? const Color(0xFF2E6B45) : const Color(0xFF8DC9A2),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.check_rounded,
+                  size: 13,
+                  color: isDark
+                      ? const Color(0xFF6DCE97)
+                      : const Color(0xFF1E7A3F)),
+              const SizedBox(width: 6),
+              Text(
+                item,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isDark
+                      ? const Color(0xFF6DCE97)
+                      : const Color(0xFF1E7A3F),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Read-Only Note
+// ─────────────────────────────────────────
+class _ReadOnlyNote extends StatelessWidget {
+  final String note;
+  final bool isDark;
+
+  const _ReadOnlyNote({required this.note, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.edit_note_rounded,
+              size: 13,
+              color: isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Remarks / Notes',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E2330) : const Color(0xFFF0F4FB),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isDark ? const Color(0xFF2C3445) : const Color(0xFFCDD5E6),
+            ),
+          ),
+          child: Text(
+            note,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: isDark ? AppTheme.darkTextHigh : AppTheme.textHighEmphasis,
+              height: 1.55,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Flag Chip (read-only indicator)
+// ─────────────────────────────────────────
+class _FlagChip extends StatelessWidget {
+  final bool isDark;
+  const _FlagChip({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF3A1A1A) : const Color(0xFFFDECEC),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? const Color(0xFF7A2828) : const Color(0xFFEFA8A8),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.flag_rounded,
+              size: 13,
+              color: isDark ? const Color(0xFFFF8080) : const Color(0xFFD93030)),
+          const SizedBox(width: 5),
+          Text(
+            'Flag Raised',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isDark ? const Color(0xFFFF8080) : const Color(0xFFD93030),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
