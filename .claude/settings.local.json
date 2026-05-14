@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(flutter pub *)"
+      "Bash(flutter pub *)",
+      "Bash(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\Admin\\\\.claude\\\\projects\\\\D--RMS-APP\\\\memory\")",
+      "Bash(Out-Null)",
+      "Bash(Write-Output \"Directory ready\")"
     ]
   }
 }

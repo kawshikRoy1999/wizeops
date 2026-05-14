@@ -417,6 +417,11 @@ class _ChecklistCard extends StatelessWidget {
     required this.isDark,
   });
 
+  static bool _isTodayDate(DateTime d) {
+    final now = DateTime.now();
+    return d.year == now.year && d.month == now.month && d.day == now.day;
+  }
+
   @override
   Widget build(BuildContext context) {
     final submitted = item.isSubmitted as bool;
@@ -455,9 +460,19 @@ class _ChecklistCard extends StatelessWidget {
                 assignDate: DashboardScreen._formatDate(selectedDate),
                 checklistName: item.checklistName as String,
                 isSubmitted: item.isSubmitted as bool,
+                isToday: _isTodayDate(selectedDate),
               ),
             ),
-          ),
+          ).then((refresh) {
+            if (refresh == true && context.mounted) {
+              context.read<ChecklistBloc>().add(FetchChecklists(
+                    assignDateTime: DashboardScreen._formatDate(selectedDate),
+                    companyId: user.companyId,
+                    userId: user.id,
+                    selectedDate: selectedDate,
+                  ));
+            }
+          }),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -493,7 +508,7 @@ class _ChecklistCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                _StatusBadge(submitted: submitted),
+                _StatusBadge(checklistStatus: item.checklistStatus as String),
               ],
             ),
           ),
@@ -582,40 +597,51 @@ class _ProgressCircle extends StatelessWidget {
 // Status Badge
 // ─────────────────────────────────────────
 class _StatusBadge extends StatelessWidget {
-  final bool submitted;
-  const _StatusBadge({required this.submitted});
+  final String checklistStatus;
+  const _StatusBadge({required this.checklistStatus});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final pendingFg =
-        isDark ? AppTheme.darkTextHigh : AppTheme.primaryBranding;
-    final pendingBg = isDark
-        ? AppTheme.darkBorder
-        : const Color(0xFFF0F4FF);
-    final pendingBorder = isDark
-        ? AppTheme.darkBorder
-        : AppTheme.primaryBranding.withOpacity(0.15);
+    final s = checklistStatus.toLowerCase().trim();
+
+    final Color fg;
+    final Color bg;
+    final Color border;
+    final String label;
+
+    if (s == 'completed') {
+      fg = AppTheme.statusSuccess;
+      bg = AppTheme.statusSuccess.withOpacity(0.12);
+      border = AppTheme.statusSuccess.withOpacity(0.3);
+      label = 'Completed';
+    } else if (s == 'save') {
+      fg = const Color(0xFFB45309);       // amber-700
+      bg = const Color(0xFFFEF3C7);       // amber-100
+      border = const Color(0xFFFCD34D);   // amber-300
+      label = 'Draft';
+    } else {
+      fg = isDark ? AppTheme.darkTextHigh : AppTheme.primaryBranding;
+      bg = isDark ? AppTheme.darkBorder : const Color(0xFFF0F4FF);
+      border = isDark
+          ? AppTheme.darkBorder
+          : AppTheme.primaryBranding.withOpacity(0.15);
+      label = 'Pending';
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: submitted
-            ? AppTheme.statusSuccess.withOpacity(0.12)
-            : pendingBg,
+        color: bg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: submitted
-              ? AppTheme.statusSuccess.withOpacity(0.3)
-              : pendingBorder,
-        ),
+        border: Border.all(color: border),
       ),
       child: Text(
-        submitted ? 'Submitted' : 'Pending',
+        label,
         style: GoogleFonts.inter(
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: submitted ? AppTheme.statusSuccess : pendingFg,
+          color: fg,
         ),
       ),
     );

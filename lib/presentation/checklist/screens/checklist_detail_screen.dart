@@ -16,8 +16,10 @@ class ChecklistDetailScreen extends StatelessWidget {
   final int companyId;
   final String assignDate;
   final String checklistName;
-  /// Passed from the dashboard list so read-only mode is known before API loads
+  /// True when checklistStatus == "Completed" — always read-only
   final bool isSubmitted;
+  /// True when the selected date is today — only today + not Completed is editable
+  final bool isToday;
 
   const ChecklistDetailScreen({
     super.key,
@@ -26,6 +28,7 @@ class ChecklistDetailScreen extends StatelessWidget {
     required this.assignDate,
     required this.checklistName,
     this.isSubmitted = false,
+    this.isToday = true,
   });
 
   @override
@@ -41,6 +44,7 @@ class ChecklistDetailScreen extends StatelessWidget {
         checklistName: checklistName,
         companyId: companyId,
         isSubmittedHint: isSubmitted,
+        isToday: isToday,
       ),
     );
   }
@@ -50,10 +54,12 @@ class _ChecklistDetailView extends StatelessWidget {
   final String checklistName;
   final int companyId;
   final bool isSubmittedHint;
+  final bool isToday;
   const _ChecklistDetailView({
     required this.checklistName,
     required this.companyId,
     required this.isSubmittedHint,
+    required this.isToday,
   });
 
   @override
@@ -120,6 +126,7 @@ class _ChecklistDetailView extends StatelessWidget {
               state: state,
               isDark: isDark,
               isSubmittedHint: isSubmittedHint,
+              isToday: isToday,
             );
           }
 
@@ -130,12 +137,18 @@ class _ChecklistDetailView extends StatelessWidget {
   }
 
   PreferredSizeWidget _buildAppBar(BuildContext context, bool isDark) {
+    // Completed → green, past date (not today) → grey-tinted, otherwise brand
+    final isReadOnly = isSubmittedHint || !isToday;
+    final Color appBarColor = isSubmittedHint
+        ? AppTheme.statusSuccess
+        : !isToday
+            ? (isDark ? AppTheme.darkSurface : const Color(0xFF6B7280))
+            : isDark
+                ? AppTheme.darkSurface
+                : AppTheme.primaryBranding;
+
     return AppBar(
-      backgroundColor: isSubmittedHint
-          ? AppTheme.statusSuccess
-          : isDark
-              ? AppTheme.darkSurface
-              : AppTheme.primaryBranding,
+      backgroundColor: appBarColor,
       elevation: 0,
       scrolledUnderElevation: 0,
       leading: IconButton(
@@ -166,7 +179,7 @@ class _ChecklistDetailView extends StatelessWidget {
           ),
         ],
       ),
-      actions: isSubmittedHint
+      actions: isReadOnly
           ? [
               Padding(
                 padding: const EdgeInsets.only(right: 16),
@@ -196,20 +209,25 @@ class _LoadedView extends StatelessWidget {
   final ChecklistDetailLoaded state;
   final bool isDark;
   final bool isSubmittedHint;
+  final bool isToday;
   const _LoadedView({
     required this.state,
     required this.isDark,
     required this.isSubmittedHint,
+    required this.isToday,
   });
 
   @override
   Widget build(BuildContext context) {
     final summary = state.summary;
-    final isReadOnly = summary.isSubmitted || isSubmittedHint;
+    // Read-only when: API says Completed OR hint already set OR not today's date
+    final isCompleted = summary.isSubmitted || isSubmittedHint;
+    final isReadOnly = isCompleted || !isToday;
     return Column(
       children: [
         // Read-only banner
-        if (isReadOnly) _ReadOnlyBanner(isDark: isDark),
+        if (isReadOnly)
+          _ReadOnlyBanner(isCompleted: isCompleted, isDark: isDark),
         // Status header bar
         _StatusBar(summary: summary, isDark: isDark),
         // Progress bar
@@ -237,7 +255,7 @@ class _LoadedView extends StatelessWidget {
         ),
         // Action buttons — hidden in read-only mode
         if (!isReadOnly)
-          _SubmitBar(isSubmitting: state.isSubmitting, isDark: isDark),
+          _SubmitBar(submittingStatus: state.submittingStatus, isDark: isDark),
       ],
     );
   }
@@ -253,49 +271,62 @@ class _StatusBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final submitted = summary.isSubmitted;
+    final s = summary.checklistStatus.toLowerCase().trim();
+
+    final Color color;
+    final IconData icon;
+    final String message;
+    final String badge;
+
+    if (s == 'completed') {
+      color = AppTheme.statusSuccess;
+      icon = Icons.check_circle_rounded;
+      message = 'This checklist has been completed';
+      badge = 'Completed';
+    } else if (s == 'save') {
+      color = const Color(0xFFB45309);
+      icon = Icons.save_rounded;
+      message = 'This checklist is saved as draft';
+      badge = 'Draft';
+    } else {
+      color = isDark ? AppTheme.darkTextHigh : AppTheme.primaryBranding;
+      icon = Icons.pending_actions_rounded;
+      message = 'Pending submission';
+      badge = 'Pending';
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       color: isDark ? AppTheme.darkSurface : AppTheme.surfaceWhite,
       child: Row(
         children: [
-          Icon(
-            submitted
-                ? Icons.check_circle_rounded
-                : Icons.pending_actions_rounded,
-            size: 16,
-            color: submitted
-                ? AppTheme.statusSuccess
-                : isDark ? AppTheme.darkTextHigh : AppTheme.primaryBranding,
-          ),
+          Icon(icon, size: 16, color: color),
           const SizedBox(width: 8),
-          Text(
-            submitted ? 'This checklist has been submitted' : 'Pending submission',
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: submitted
-                  ? AppTheme.statusSuccess
-                  : isDark ? AppTheme.darkTextHigh : AppTheme.primaryBranding,
+          Expanded(
+            child: Text(
+              message,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: color,
+              ),
             ),
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: (submitted ? AppTheme.statusSuccess : AppTheme.primaryBranding)
-                  .withOpacity(0.1),
+              color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: color.withOpacity(0.25)),
             ),
             child: Text(
-              submitted ? 'Submitted' : 'Pending',
+              badge,
               style: GoogleFonts.inter(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: submitted
-                    ? AppTheme.statusSuccess
-                    : isDark ? AppTheme.darkTextHigh : AppTheme.primaryBranding,
+                color: color,
               ),
             ),
           ),
@@ -1007,27 +1038,33 @@ class _TextBoxFieldState extends State<_TextBoxField> {
 // Read-Only Banner
 // ─────────────────────────────────────────
 class _ReadOnlyBanner extends StatelessWidget {
+  final bool isCompleted;
   final bool isDark;
-  const _ReadOnlyBanner({required this.isDark});
+  const _ReadOnlyBanner({required this.isCompleted, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
+    final color = isCompleted ? AppTheme.statusSuccess : const Color(0xFF6B7280);
+    final icon = isCompleted ? Icons.check_circle_rounded : Icons.history_rounded;
+    final message = isCompleted
+        ? 'This checklist has been completed and is view-only.'
+        : 'Only today\'s checklists can be edited. This is view-only.';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: AppTheme.statusSuccess.withOpacity(isDark ? 0.15 : 0.08),
+      color: color.withOpacity(isDark ? 0.15 : 0.08),
       child: Row(
         children: [
-          const Icon(Icons.lock_rounded,
-              size: 14, color: AppTheme.statusSuccess),
+          Icon(icon, size: 14, color: color),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'This checklist has been submitted and is view-only.',
+              message,
               style: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: AppTheme.statusSuccess,
+                color: color,
               ),
             ),
           ),
@@ -1760,9 +1797,9 @@ class _ImageGalleryViewerState extends State<_ImageGalleryViewer> {
 // Submit Bar (Draft + Complete buttons)
 // ─────────────────────────────────────────
 class _SubmitBar extends StatelessWidget {
-  final bool isSubmitting;
+  final String? submittingStatus;
   final bool isDark;
-  const _SubmitBar({required this.isSubmitting, required this.isDark});
+  const _SubmitBar({required this.submittingStatus, required this.isDark});
 
   void _submit(BuildContext context, String status) {
     context.read<ChecklistDetailBloc>().add(SubmitChecklist(status: status));
@@ -1797,97 +1834,106 @@ class _SubmitBar extends StatelessWidget {
         children: [
           // Draft button
           Expanded(
-            child: GestureDetector(
-              onTap: isSubmitting ? null : () => _submit(context, 'Save'),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? AppTheme.darkCard
-                      : AppTheme.primaryBranding.withOpacity(0.06),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppTheme.primaryBranding.withOpacity(
-                        isDark ? 0.3 : 0.2),
-                  ),
-                ),
-                child: Center(
-                  child: isSubmitting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppTheme.primaryBranding,
-                          ),
-                        )
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.save_outlined,
-                                size: 16, color: AppTheme.primaryBranding),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Save Draft',
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.primaryBranding,
-                              ),
-                            ),
-                          ],
-                        ),
-                ),
-              ),
+            child: _SubmitButton(
+              label: 'Save Draft',
+              icon: Icons.save_outlined,
+              isLoading: submittingStatus == 'Save',
+              isDisabled: submittingStatus != null,
+              filled: false,
+              isDark: isDark,
+              onTap: () => _submit(context, 'Save'),
             ),
           ),
           const SizedBox(width: 12),
           // Complete button
           Expanded(
-            child: GestureDetector(
-              onTap: isSubmitting ? null : () => _submit(context, 'Completed'),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: isSubmitting
-                      ? AppTheme.statusSuccess.withOpacity(0.7)
-                      : AppTheme.statusSuccess,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Center(
-                  child: isSubmitting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.check_circle_outline_rounded,
-                                size: 16, color: Colors.white),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Complete',
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                ),
-              ),
+            child: _SubmitButton(
+              label: 'Complete',
+              icon: Icons.check_circle_outline_rounded,
+              isLoading: submittingStatus == 'Completed',
+              isDisabled: submittingStatus != null,
+              filled: true,
+              isDark: isDark,
+              onTap: () => _submit(context, 'Completed'),
             ),
           ),
         ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SubmitButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool isLoading;
+  final bool isDisabled;
+  final bool filled;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _SubmitButton({
+    required this.label,
+    required this.icon,
+    required this.isLoading,
+    required this.isDisabled,
+    required this.filled,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color fg = filled ? Colors.white : AppTheme.primaryBranding;
+    final Color bg = filled
+        ? (isDisabled && !isLoading
+            ? AppTheme.statusSuccess.withOpacity(0.4)
+            : AppTheme.statusSuccess)
+        : (isDark ? AppTheme.darkCard : AppTheme.primaryBranding.withOpacity(0.06));
+
+    return GestureDetector(
+      onTap: isDisabled ? null : onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(12),
+          border: filled
+              ? null
+              : Border.all(
+                  color: AppTheme.primaryBranding.withOpacity(
+                      isDisabled && !isLoading ? 0.1 : (isDark ? 0.3 : 0.2)),
+                ),
+        ),
+        child: Center(
+          child: isLoading
+              ? SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: fg,
+                  ),
+                )
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 16,
+                        color: isDisabled ? fg.withOpacity(0.4) : fg),
+                    const SizedBox(width: 6),
+                    Text(
+                      label,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isDisabled ? fg.withOpacity(0.4) : fg,
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );

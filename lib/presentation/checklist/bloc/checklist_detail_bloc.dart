@@ -194,7 +194,7 @@ class ChecklistDetailBloc
     final current = state;
     if (current is! ChecklistDetailLoaded) return;
 
-    emit(current.copyWith(isSubmitting: true));
+    emit(current.copyWith(submittingStatus: event.status));
 
     final summary = current.summary;
 
@@ -239,11 +239,11 @@ class ChecklistDetailBloc
 
     result.fold(
       (failure) => emit(after.copyWith(
-        isSubmitting: false,
+        clearSubmittingStatus: true,
         submitError: failure.message,
       )),
       (_) => emit(after.copyWith(
-        isSubmitting: false,
+        clearSubmittingStatus: true,
         submitSuccess: true,
       )),
     );

@@ -66,7 +66,7 @@ class ChecklistDetailSummary extends Equatable {
   });
 
   bool get isSubmitted =>
-      checklistStatus.toLowerCase().startsWith('submit');
+      checklistStatus.toLowerCase() == 'completed';
 
   @override
   List<Object?> get props => [checklistAssignmentId];

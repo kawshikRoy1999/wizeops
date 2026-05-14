@@ -31,8 +31,8 @@ class ChecklistDetailLoaded extends ChecklistDetailState {
   final Set<int> uploadingLabels;
   /// Non-null when last upload failed; UI consumes via BlocListener
   final UploadError? uploadError;
-  /// True while a save-draft or complete request is in flight
-  final bool isSubmitting;
+  /// "Save" or "Completed" while that button's request is in flight, else null
+  final String? submittingStatus;
   /// Non-null on submit error; UI consumes via BlocListener
   final String? submitError;
   /// True after a successful submit; UI consumes via BlocListener
@@ -46,7 +46,7 @@ class ChecklistDetailLoaded extends ChecklistDetailState {
     required this.fileValues,
     this.uploadingLabels = const {},
     this.uploadError,
-    this.isSubmitting = false,
+    this.submittingStatus,
     this.submitError,
     this.submitSuccess = false,
   });
@@ -59,9 +59,10 @@ class ChecklistDetailLoaded extends ChecklistDetailState {
     Map<int, List<String>>? fileValues,
     Set<int>? uploadingLabels,
     UploadError? uploadError,
-    bool? isSubmitting,
+    String? submittingStatus,
     String? submitError,
     bool? submitSuccess,
+    bool clearSubmittingStatus = false,
   }) =>
       ChecklistDetailLoaded(
         summary: summary ?? this.summary,
@@ -71,7 +72,7 @@ class ChecklistDetailLoaded extends ChecklistDetailState {
         fileValues: fileValues ?? this.fileValues,
         uploadingLabels: uploadingLabels ?? this.uploadingLabels,
         uploadError: uploadError,
-        isSubmitting: isSubmitting ?? this.isSubmitting,
+        submittingStatus: clearSubmittingStatus ? null : (submittingStatus ?? this.submittingStatus),
         submitError: submitError,
         submitSuccess: submitSuccess ?? this.submitSuccess,
       );
@@ -87,7 +88,7 @@ class ChecklistDetailLoaded extends ChecklistDetailState {
         fileValues,
         uploadingLabels,
         uploadError,
-        isSubmitting,
+        submittingStatus,
         submitError,
         submitSuccess,
       ];
