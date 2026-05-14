@@ -6,6 +6,8 @@ class ChecklistEntity extends Equatable {
   final String checklistName;
   final String assignDateTime;
   final String checklistStatus;
+  final int totalFilledCount;
+  final int totalCount;
 
   const ChecklistEntity({
     required this.checklistAssignmentId,
@@ -13,11 +15,16 @@ class ChecklistEntity extends Equatable {
     required this.checklistName,
     required this.assignDateTime,
     required this.checklistStatus,
+    this.totalFilledCount = 0,
+    this.totalCount = 0,
   });
 
   bool get isSubmitted =>
       checklistStatus.toLowerCase().startsWith('submit');
 
+  double get progressRatio =>
+      totalCount > 0 ? (totalFilledCount / totalCount).clamp(0.0, 1.0) : 0.0;
+
   @override
-  List<Object?> get props => [checklistAssignmentId, checklistId, checklistStatus];
+  List<Object?> get props => [checklistAssignmentId, checklistId, checklistStatus, totalFilledCount, totalCount];
 }

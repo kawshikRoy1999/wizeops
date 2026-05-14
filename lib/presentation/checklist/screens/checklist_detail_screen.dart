@@ -66,18 +66,39 @@ class _ChecklistDetailView extends StatelessWidget {
       appBar: _buildAppBar(context, isDark),
       body: BlocConsumer<ChecklistDetailBloc, ChecklistDetailState>(
         listenWhen: (prev, curr) =>
-            curr is ChecklistDetailLoaded && curr.uploadError != null,
+            curr is ChecklistDetailLoaded &&
+            (curr.uploadError != null ||
+                curr.submitError != null ||
+                curr.submitSuccess),
         listener: (context, state) {
-          if (state is ChecklistDetailLoaded && state.uploadError != null) {
+          if (state is! ChecklistDetailLoaded) return;
+
+          if (state.uploadError != null) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text('Upload failed: ${state.uploadError!.message}',
                   style: GoogleFonts.inter(color: Colors.white, fontSize: 13)),
               backgroundColor: AppTheme.statusError,
               behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 80),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
             ));
+          }
+
+          if (state.submitError != null) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(state.submitError!,
+                  style: GoogleFonts.inter(color: Colors.white, fontSize: 13)),
+              backgroundColor: AppTheme.statusError,
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ));
+          }
+
+          if (state.submitSuccess) {
+            Navigator.pop(context, true); // true = refresh dashboard
           }
         },
         builder: (context, state) {
@@ -196,7 +217,7 @@ class _LoadedView extends StatelessWidget {
         // Questions list
         Expanded(
           child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            padding: EdgeInsets.fromLTRB(16, 16, 16, isReadOnly ? 24 : 16),
             itemCount: summary.details.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, i) {
@@ -214,6 +235,9 @@ class _LoadedView extends StatelessWidget {
             },
           ),
         ),
+        // Action buttons — hidden in read-only mode
+        if (!isReadOnly)
+          _SubmitBar(isSubmitting: state.isSubmitting, isDark: isDark),
       ],
     );
   }
@@ -1726,6 +1750,144 @@ class _ImageGalleryViewerState extends State<_ImageGalleryViewer> {
         loadingBuilder: (_, __) => const Center(
           child: CircularProgressIndicator(
               color: AppTheme.primaryBranding, strokeWidth: 2),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Submit Bar (Draft + Complete buttons)
+// ─────────────────────────────────────────
+class _SubmitBar extends StatelessWidget {
+  final bool isSubmitting;
+  final bool isDark;
+  const _SubmitBar({required this.isSubmitting, required this.isDark});
+
+  void _submit(BuildContext context, String status) {
+    context.read<ChecklistDetailBloc>().add(SubmitChecklist(status: status));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkSurface : AppTheme.surfaceWhite,
+        border: Border(
+          top: BorderSide(
+            color: isDark ? AppTheme.darkBorder : const Color(0xFFEEF0F4),
+          ),
+        ),
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 12,
+                  offset: const Offset(0, -3),
+                ),
+              ],
+      ),
+      // SafeArea pushes content above the on-screen nav bar (back/home/recents)
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Row(
+        children: [
+          // Draft button
+          Expanded(
+            child: GestureDetector(
+              onTap: isSubmitting ? null : () => _submit(context, 'Save'),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? AppTheme.darkCard
+                      : AppTheme.primaryBranding.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.primaryBranding.withOpacity(
+                        isDark ? 0.3 : 0.2),
+                  ),
+                ),
+                child: Center(
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppTheme.primaryBranding,
+                          ),
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.save_outlined,
+                                size: 16, color: AppTheme.primaryBranding),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Save Draft',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.primaryBranding,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Complete button
+          Expanded(
+            child: GestureDetector(
+              onTap: isSubmitting ? null : () => _submit(context, 'Completed'),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: isSubmitting
+                      ? AppTheme.statusSuccess.withOpacity(0.7)
+                      : AppTheme.statusSuccess,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.check_circle_outline_rounded,
+                                size: 16, color: Colors.white),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Complete',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
+          ),
+        ],
+          ),
         ),
       ),
     );

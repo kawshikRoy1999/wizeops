@@ -3,8 +3,10 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/datasources/upload_file_datasource.dart';
 import '../../../domain/entities/checklist_detail_entity.dart';
+import '../../../data/models/submit_checklist_model.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import '../../../domain/usecases/get_checklist_details_usecase.dart';
+import '../../../domain/usecases/submit_checklist_usecase.dart';
 import '../../../domain/usecases/upload_checklist_file_usecase.dart';
 
 part 'checklist_detail_event.dart';
@@ -14,15 +16,18 @@ class ChecklistDetailBloc
     extends Bloc<ChecklistDetailEvent, ChecklistDetailState> {
   final GetChecklistDetailsUseCase useCase;
   final UploadChecklistFileUseCase uploadUseCase;
+  final SubmitChecklistUseCase submitUseCase;
   final AuthRepository authRepository;
 
-  // Cached user fields — set during _onLoad, used by _onUploadFile
+  // Cached user fields — set during _onLoad, used by _onUploadFile / _onSubmit
   int _companyId = 0;
   String _imageFilePath = '';
+  String _userId = '';
 
   ChecklistDetailBloc({
     required this.useCase,
     required this.uploadUseCase,
+    required this.submitUseCase,
     required this.authRepository,
   }) : super(const ChecklistDetailInitial()) {
     on<LoadChecklistDetails>(_onLoad);
@@ -31,16 +36,18 @@ class ChecklistDetailBloc
     on<UpdateFlagValue>(_onUpdateFlag);
     on<UpdateFileValue>(_onUpdateFile);
     on<UploadFile>(_onUploadFile);
+    on<SubmitChecklist>(_onSubmit);
   }
 
   Future<void> _onLoad(
       LoadChecklistDetails event, Emitter<ChecklistDetailState> emit) async {
     emit(const ChecklistDetailLoading());
 
-    // Cache user data for later use during upload
+    // Cache user data for later use during upload / submit
     _companyId = event.companyId;
     final user = await authRepository.getCachedUser();
     _imageFilePath = user?.imageFilePath ?? '';
+    _userId = user?.id ?? '';
 
     final result = await useCase(ChecklistDetailParams(
       checklistAssignmentId: event.checklistAssignmentId,
@@ -179,6 +186,66 @@ class ChecklistDetailBloc
           uploadingLabels: doneSet,
         ));
       },
+    );
+  }
+
+  Future<void> _onSubmit(
+      SubmitChecklist event, Emitter<ChecklistDetailState> emit) async {
+    final current = state;
+    if (current is! ChecklistDetailLoaded) return;
+
+    emit(current.copyWith(isSubmitting: true));
+
+    final summary = current.summary;
+
+    // Build AssignCheckList items from current state
+    final items = summary.details.map((detail) {
+      final labelId = detail.parentChecklistLabelId;
+      final cdnUrls = current.fileValues[labelId] ?? [];
+
+      final filePaths = cdnUrls.map((url) {
+        // Extract filename from CDN URL
+        final name = Uri.decodeFull(url.split('?').first.split('/').last);
+        return FilePathRequest(
+          mapId: 0,
+          imagePath: url,
+          imageName: name,
+          checklistLabelId: labelId,
+        );
+      }).toList();
+
+      return AssignCheckListItem(
+        checkListAssignmentValuesId: detail.checkListAssignmentValuesId,
+        checklistLabelId: labelId,
+        checklistValue: current.fieldValues[labelId] ?? '',
+        checklistNote: current.noteValues[labelId] ?? '',
+        status: current.flagValues[labelId] ?? false,
+        filePaths: filePaths,
+      );
+    }).toList();
+
+    final request = SubmitChecklistRequest(
+      checkListAssignmentValuesId: 0,
+      checklistAssignmentId: summary.checklistAssignmentId,
+      checkListStatus: event.status,
+      createdBy: _userId,
+      assignCheckList: items,
+    );
+
+    final result = await submitUseCase(request);
+
+    final after = state;
+    if (after is! ChecklistDetailLoaded) return;
+
+    result.fold(
+      (failure) => emit(after.copyWith(
+        isSubmitting: false,
+        submitError: failure.message,
+      )),
+      (_) => emit(after.copyWith(
+        isSubmitting: false,
+        submitSuccess: true,
+      )),
     );
   }
 }

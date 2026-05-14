@@ -61,6 +61,14 @@ class UpdateFileValue extends ChecklistDetailEvent {
   List<Object> get props => [labelId, paths];
 }
 
+class SubmitChecklist extends ChecklistDetailEvent {
+  /// "Save" for draft, "Completed" for complete
+  final String status;
+  const SubmitChecklist({required this.status});
+  @override
+  List<Object> get props => [status];
+}
+
 class UploadFile extends ChecklistDetailEvent {
   final int labelId;
   final String filePath;

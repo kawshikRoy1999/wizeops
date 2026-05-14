@@ -21,6 +21,10 @@ import '../../data/datasources/upload_file_datasource.dart';
 import '../../data/repositories/upload_file_repository_impl.dart';
 import '../../domain/repositories/upload_file_repository.dart';
 import '../../domain/usecases/upload_checklist_file_usecase.dart';
+import '../../data/datasources/submit_checklist_datasource.dart';
+import '../../data/repositories/submit_checklist_repository_impl.dart';
+import '../../domain/repositories/submit_checklist_repository.dart';
+import '../../domain/usecases/submit_checklist_usecase.dart';
 
 final sl = GetIt.instance;
 
@@ -99,10 +103,22 @@ Future<void> initDependencies() async {
     () => UploadChecklistFileUseCase(sl<UploadFileRepository>()),
   );
 
+  // Submit checklist
+  sl.registerLazySingleton<SubmitChecklistDataSource>(
+    () => SubmitChecklistDataSourceImpl(sl<DioClient>().dio),
+  );
+  sl.registerLazySingleton<SubmitChecklistRepository>(
+    () => SubmitChecklistRepositoryImpl(dataSource: sl<SubmitChecklistDataSource>()),
+  );
+  sl.registerLazySingleton<SubmitChecklistUseCase>(
+    () => SubmitChecklistUseCase(sl<SubmitChecklistRepository>()),
+  );
+
   sl.registerFactory<ChecklistDetailBloc>(
     () => ChecklistDetailBloc(
       useCase: sl<GetChecklistDetailsUseCase>(),
       uploadUseCase: sl<UploadChecklistFileUseCase>(),
+      submitUseCase: sl<SubmitChecklistUseCase>(),
       authRepository: sl<AuthRepository>(),
     ),
   );

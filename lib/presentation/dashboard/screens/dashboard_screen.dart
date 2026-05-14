@@ -462,28 +462,8 @@ class _ChecklistCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                // Status indicator
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: submitted
-                        ? AppTheme.statusSuccess.withOpacity(0.1)
-                        : AppTheme.primaryBranding.withOpacity(0.07),
-                    borderRadius: BorderRadius.circular(11),
-                  ),
-                  child: Icon(
-                    submitted
-                        ? Icons.check_circle_outline_rounded
-                        : Icons.radio_button_unchecked_rounded,
-                    size: 20,
-                    color: submitted
-                        ? AppTheme.statusSuccess
-                        : isDark
-                            ? AppTheme.darkTextLow
-                            : AppTheme.primaryBranding,
-                  ),
-                ),
+                // Progress indicator
+                _ProgressCircle(item: item, isDark: isDark),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -518,6 +498,81 @@ class _ChecklistCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Progress Circle (left indicator on card)
+// ─────────────────────────────────────────
+class _ProgressCircle extends StatelessWidget {
+  final dynamic item;
+  final bool isDark;
+  const _ProgressCircle({required this.item, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final submitted = item.isSubmitted as bool;
+    final filled = item.totalFilledCount as int;
+    final total = item.totalCount as int;
+    final ratio = item.progressRatio as double;
+
+    final activeColor =
+        submitted ? AppTheme.statusSuccess : AppTheme.primaryBranding;
+    final bgColor = activeColor.withOpacity(isDark ? 0.12 : 0.08);
+    final trackColor = activeColor.withOpacity(isDark ? 0.15 : 0.1);
+
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Track ring
+          SizedBox(
+            width: 44,
+            height: 44,
+            child: CircularProgressIndicator(
+              value: 1.0,
+              strokeWidth: 3,
+              color: trackColor,
+            ),
+          ),
+          // Progress ring
+          SizedBox(
+            width: 44,
+            height: 44,
+            child: CircularProgressIndicator(
+              value: submitted ? 1.0 : ratio,
+              strokeWidth: 3,
+              color: activeColor,
+              backgroundColor: Colors.transparent,
+            ),
+          ),
+          // Inner fill + fraction
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: bgColor,
+              shape: BoxShape.circle,
+            ),
+            child: submitted
+                ? Icon(Icons.check_rounded, size: 16, color: activeColor)
+                : Center(
+                    child: Text(
+                      '$filled/$total',
+                      style: GoogleFonts.inter(
+                        fontSize: total >= 10 ? 9 : 10,
+                        fontWeight: FontWeight.w700,
+                        color: activeColor,
+                        height: 1,
+                      ),
+                    ),
+                  ),
+          ),
+        ],
       ),
     );
   }

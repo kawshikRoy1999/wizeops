@@ -48,6 +48,8 @@ class ChecklistItemModel {
   final String checklistName;
   final String assignDateTime;
   final String checklistStatus;
+  final int totalFilledCount;
+  final int totalCount;
 
   const ChecklistItemModel({
     required this.checklistAssignmentId,
@@ -55,6 +57,8 @@ class ChecklistItemModel {
     required this.checklistName,
     required this.assignDateTime,
     required this.checklistStatus,
+    required this.totalFilledCount,
+    required this.totalCount,
   });
 
   factory ChecklistItemModel.fromJson(Map<String, dynamic> json) {
@@ -64,6 +68,8 @@ class ChecklistItemModel {
       checklistName: json['checklistName'] as String? ?? '',
       assignDateTime: json['assignDateTime'] as String? ?? '',
       checklistStatus: json['checklistStatus'] as String? ?? '',
+      totalFilledCount: json['totalFilledCount'] as int? ?? 0,
+      totalCount: json['totalCount'] as int? ?? 0,
     );
   }
 
@@ -73,5 +79,7 @@ class ChecklistItemModel {
         checklistName: checklistName,
         assignDateTime: assignDateTime,
         checklistStatus: checklistStatus,
+        totalFilledCount: totalFilledCount,
+        totalCount: totalCount,
       );
 }
