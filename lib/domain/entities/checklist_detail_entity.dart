@@ -11,7 +11,7 @@ class ChecklistDetailEntity extends Equatable {
   final String checklistStatus;
   final String checklistNote;
   final int checkListAssignmentValuesId;
-  final bool status;
+  final bool flagRaised;
   final String filePathsJson;
 
   const ChecklistDetailEntity({
@@ -25,7 +25,7 @@ class ChecklistDetailEntity extends Equatable {
     required this.checklistStatus,
     required this.checklistNote,
     required this.checkListAssignmentValuesId,
-    required this.status,
+    required this.flagRaised,
     required this.filePathsJson,
   });
 
@@ -47,7 +47,7 @@ class ChecklistDetailEntity extends Equatable {
   }
 
   @override
-  List<Object?> get props => [parentChecklistLabelId, checklistValue, status, filePathsJson];
+  List<Object?> get props => [parentChecklistLabelId, checklistValue, flagRaised, filePathsJson];
 }
 
 enum FieldType { radio, dropdown, checkbox, textBox }
@@ -65,7 +65,8 @@ class ChecklistDetailSummary extends Equatable {
     required this.details,
   });
 
-  bool get isSubmitted => checklistStatus.toLowerCase() == 'submit';
+  bool get isSubmitted =>
+      checklistStatus.toLowerCase().startsWith('submit');
 
   @override
   List<Object?> get props => [checklistAssignmentId];

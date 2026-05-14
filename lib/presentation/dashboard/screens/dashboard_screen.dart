@@ -454,6 +454,7 @@ class _ChecklistCard extends StatelessWidget {
                 companyId: user.companyId,
                 assignDate: DashboardScreen._formatDate(selectedDate),
                 checklistName: item.checklistName as String,
+                isSubmitted: item.isSubmitted as bool,
               ),
             ),
           ),

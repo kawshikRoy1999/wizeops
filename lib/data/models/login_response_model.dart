@@ -71,7 +71,7 @@ class UserDataModel {
       userEmail: json['userEmail'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
       token: json['token'] as String? ?? '',
-      roles: json['roles'] as String? ?? '',
+      roles: json['roles'] is String ? json['roles'] as String : (json['roles']?.toString() ?? ''),
       userName: json['userName'] as String? ?? '',
       isActive: json['isActive'] as bool? ?? false,
       isCustomer: json['isCustomer'] as bool? ?? false,

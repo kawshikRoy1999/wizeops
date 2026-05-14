@@ -3,6 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:photo_view/photo_view.dart';
+import 'package:photo_view/photo_view_gallery.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/di/injection_container.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/checklist_detail_entity.dart';
@@ -13,6 +16,8 @@ class ChecklistDetailScreen extends StatelessWidget {
   final int companyId;
   final String assignDate;
   final String checklistName;
+  /// Passed from the dashboard list so read-only mode is known before API loads
+  final bool isSubmitted;
 
   const ChecklistDetailScreen({
     super.key,
@@ -20,6 +25,7 @@ class ChecklistDetailScreen extends StatelessWidget {
     required this.companyId,
     required this.assignDate,
     required this.checklistName,
+    this.isSubmitted = false,
   });
 
   @override
@@ -31,14 +37,24 @@ class ChecklistDetailScreen extends StatelessWidget {
           companyId: companyId,
           assignDate: assignDate,
         )),
-      child: _ChecklistDetailView(checklistName: checklistName),
+      child: _ChecklistDetailView(
+        checklistName: checklistName,
+        companyId: companyId,
+        isSubmittedHint: isSubmitted,
+      ),
     );
   }
 }
 
 class _ChecklistDetailView extends StatelessWidget {
   final String checklistName;
-  const _ChecklistDetailView({required this.checklistName});
+  final int companyId;
+  final bool isSubmittedHint;
+  const _ChecklistDetailView({
+    required this.checklistName,
+    required this.companyId,
+    required this.isSubmittedHint,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +64,22 @@ class _ChecklistDetailView extends StatelessWidget {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: _buildAppBar(context, isDark),
-      body: BlocBuilder<ChecklistDetailBloc, ChecklistDetailState>(
+      body: BlocConsumer<ChecklistDetailBloc, ChecklistDetailState>(
+        listenWhen: (prev, curr) =>
+            curr is ChecklistDetailLoaded && curr.uploadError != null,
+        listener: (context, state) {
+          if (state is ChecklistDetailLoaded && state.uploadError != null) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Upload failed: ${state.uploadError!.message}',
+                  style: GoogleFonts.inter(color: Colors.white, fontSize: 13)),
+              backgroundColor: AppTheme.statusError,
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ));
+          }
+        },
         builder: (context, state) {
           if (state is ChecklistDetailLoading) {
             return const Center(
@@ -64,7 +95,11 @@ class _ChecklistDetailView extends StatelessWidget {
           }
 
           if (state is ChecklistDetailLoaded) {
-            return _LoadedView(state: state, isDark: isDark);
+            return _LoadedView(
+              state: state,
+              isDark: isDark,
+              isSubmittedHint: isSubmittedHint,
+            );
           }
 
           return const SizedBox.shrink();
@@ -75,8 +110,11 @@ class _ChecklistDetailView extends StatelessWidget {
 
   PreferredSizeWidget _buildAppBar(BuildContext context, bool isDark) {
     return AppBar(
-      backgroundColor:
-          isDark ? AppTheme.darkSurface : AppTheme.primaryBranding,
+      backgroundColor: isSubmittedHint
+          ? AppTheme.statusSuccess
+          : isDark
+              ? AppTheme.darkSurface
+              : AppTheme.primaryBranding,
       elevation: 0,
       scrolledUnderElevation: 0,
       leading: IconButton(
@@ -107,6 +145,25 @@ class _ChecklistDetailView extends StatelessWidget {
           ),
         ],
       ),
+      actions: isSubmittedHint
+          ? [
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.lock_rounded,
+                        size: 14, color: Colors.white70),
+                    const SizedBox(width: 4),
+                    Text('Read Only',
+                        style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              )
+            ]
+          : null,
     );
   }
 }
@@ -117,13 +174,21 @@ class _ChecklistDetailView extends StatelessWidget {
 class _LoadedView extends StatelessWidget {
   final ChecklistDetailLoaded state;
   final bool isDark;
-  const _LoadedView({required this.state, required this.isDark});
+  final bool isSubmittedHint;
+  const _LoadedView({
+    required this.state,
+    required this.isDark,
+    required this.isSubmittedHint,
+  });
 
   @override
   Widget build(BuildContext context) {
     final summary = state.summary;
+    final isReadOnly = summary.isSubmitted || isSubmittedHint;
     return Column(
       children: [
+        // Read-only banner
+        if (isReadOnly) _ReadOnlyBanner(isDark: isDark),
         // Status header bar
         _StatusBar(summary: summary, isDark: isDark),
         // Progress bar
@@ -141,9 +206,9 @@ class _LoadedView extends StatelessWidget {
                 detail: summary.details[i],
                 currentValue: state.fieldValues[id] ?? '',
                 currentNote: state.noteValues[id] ?? '',
-                isFlagged: !(state.flagValues[id] ?? true),
+                isFlagged: state.flagValues[id] ?? false,
                 filePaths: state.fileValues[id] ?? [],
-                isReadOnly: summary.isSubmitted,
+                isReadOnly: isReadOnly,
                 isDark: isDark,
               );
             },
@@ -434,13 +499,29 @@ class _QuestionCard extends StatelessWidget {
                     isDark: isDark,
                   ),
                 ),
-                const SizedBox(width: 10),
-                _AttachmentButton(
-                  labelId: detail.parentChecklistLabelId,
-                  filePaths: filePaths,
-                  isReadOnly: isReadOnly,
-                  isDark: isDark,
-                ),
+                // In read-only mode, only show attachment button when there
+                // are already files attached (so user can still tap to view)
+                if (!isReadOnly || filePaths.isNotEmpty) ...[
+                  const SizedBox(width: 10),
+                  BlocBuilder<ChecklistDetailBloc, ChecklistDetailState>(
+                    buildWhen: (p, c) =>
+                        c is ChecklistDetailLoaded &&
+                        p is ChecklistDetailLoaded &&
+                        p.isUploading(detail.parentChecklistLabelId) !=
+                            c.isUploading(detail.parentChecklistLabelId),
+                    builder: (context, state) {
+                      final uploading = state is ChecklistDetailLoaded &&
+                          state.isUploading(detail.parentChecklistLabelId);
+                      return _AttachmentButton(
+                        labelId: detail.parentChecklistLabelId,
+                        filePaths: filePaths,
+                        isReadOnly: isReadOnly,
+                        isUploading: uploading,
+                        isDark: isDark,
+                      );
+                    },
+                  ),
+                ],
               ],
             ),
             if (filePaths.isNotEmpty) ...[
@@ -448,6 +529,7 @@ class _QuestionCard extends StatelessWidget {
               _AttachmentList(
                 labelId: detail.parentChecklistLabelId,
                 filePaths: filePaths,
+                isReadOnly: isReadOnly,
                 isDark: isDark,
               ),
             ],
@@ -898,6 +980,40 @@ class _TextBoxFieldState extends State<_TextBoxField> {
 }
 
 // ─────────────────────────────────────────
+// Read-Only Banner
+// ─────────────────────────────────────────
+class _ReadOnlyBanner extends StatelessWidget {
+  final bool isDark;
+  const _ReadOnlyBanner({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      color: AppTheme.statusSuccess.withOpacity(isDark ? 0.15 : 0.08),
+      child: Row(
+        children: [
+          const Icon(Icons.lock_rounded,
+              size: 14, color: AppTheme.statusSuccess),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'This checklist has been submitted and is view-only.',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.statusSuccess,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
 // Divider
 // ─────────────────────────────────────────
 class _Divider extends StatelessWidget {
@@ -1038,10 +1154,8 @@ class _RaiseFlagCheckbox extends StatelessWidget {
       onTap: isReadOnly
           ? null
           : () => context.read<ChecklistDetailBloc>().add(
-                // visual isFlagged is inverted from API status:
-                // checking (isFlagged goes false→true) sends status=false
-                // unchecking (isFlagged goes true→false) sends status=true
-                UpdateFlagValue(labelId: labelId, raised: isFlagged),
+                // Simple toggle: checked → true, unchecked → false
+                UpdateFlagValue(labelId: labelId, raised: !isFlagged),
               ),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
@@ -1121,12 +1235,14 @@ class _AttachmentButton extends StatelessWidget {
   final int labelId;
   final List<String> filePaths;
   final bool isReadOnly;
+  final bool isUploading;
   final bool isDark;
 
   const _AttachmentButton({
     required this.labelId,
     required this.filePaths,
     required this.isReadOnly,
+    required this.isUploading,
     required this.isDark,
   });
 
@@ -1139,7 +1255,6 @@ class _AttachmentButton extends StatelessWidget {
       ),
       builder: (_) => _AttachmentSheet(
         labelId: labelId,
-        existingPaths: filePaths,
         isDark: isDark,
         blocContext: context,
       ),
@@ -1149,32 +1264,58 @@ class _AttachmentButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final count = filePaths.length;
+    final canTap = !isReadOnly && !isUploading;
     return GestureDetector(
-      onTap: isReadOnly ? null : () => _showPicker(context),
-      child: Container(
+      onTap: canTap ? () => _showPicker(context) : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
-          color: isDark ? AppTheme.darkSurface : AppTheme.scaffoldBg,
+          color: isUploading
+              ? AppTheme.primaryBranding.withOpacity(0.06)
+              : isDark
+                  ? AppTheme.darkSurface
+                  : AppTheme.scaffoldBg,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isDark ? AppTheme.darkBorder : const Color(0xFFE4E7EC),
+            color: isUploading
+                ? AppTheme.primaryBranding.withOpacity(0.3)
+                : isDark
+                    ? AppTheme.darkBorder
+                    : const Color(0xFFE4E7EC),
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.attach_file_rounded,
-              size: 15,
-              color: isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
-            ),
+            if (isUploading)
+              const SizedBox(
+                width: 13,
+                height: 13,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.8,
+                  color: AppTheme.primaryBranding,
+                ),
+              )
+            else
+              Icon(
+                Icons.attach_file_rounded,
+                size: 15,
+                color: isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
+              ),
             const SizedBox(width: 5),
             Text(
-              count > 0 ? '$count file${count > 1 ? 's' : ''}' : 'Attach',
+              isUploading
+                  ? 'Uploading…'
+                  : count > 0
+                      ? '$count file${count > 1 ? 's' : ''}'
+                      : 'Attach',
               style: GoogleFonts.inter(
                 fontSize: 12,
-                fontWeight: count > 0 ? FontWeight.w600 : FontWeight.w400,
-                color: count > 0
+                fontWeight: count > 0 || isUploading
+                    ? FontWeight.w600
+                    : FontWeight.w400,
+                color: isUploading || count > 0
                     ? AppTheme.primaryBranding
                     : isDark
                         ? AppTheme.darkTextLow
@@ -1193,29 +1334,27 @@ class _AttachmentButton extends StatelessWidget {
 // ─────────────────────────────────────────
 class _AttachmentSheet extends StatelessWidget {
   final int labelId;
-  final List<String> existingPaths;
   final bool isDark;
   final BuildContext blocContext;
 
   const _AttachmentSheet({
     required this.labelId,
-    required this.existingPaths,
     required this.isDark,
     required this.blocContext,
   });
 
-  void _addPath(BuildContext ctx, String path) {
-    final updated = [...existingPaths, path];
+  void _dispatch(BuildContext ctx, String filePath) {
     blocContext
         .read<ChecklistDetailBloc>()
-        .add(UpdateFileValue(labelId: labelId, paths: updated));
+        .add(UploadFile(labelId: labelId, filePath: filePath));
     Navigator.pop(ctx);
   }
 
   Future<void> _openCamera(BuildContext ctx) async {
     final picker = ImagePicker();
-    final photo = await picker.pickImage(source: ImageSource.camera, imageQuality: 80);
-    if (photo != null && ctx.mounted) _addPath(ctx, photo.path);
+    final photo =
+        await picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+    if (photo != null && ctx.mounted) _dispatch(ctx, photo.path);
   }
 
   Future<void> _browseFiles(BuildContext ctx) async {
@@ -1224,7 +1363,7 @@ class _AttachmentSheet extends StatelessWidget {
       type: FileType.any,
     );
     if (result != null && result.files.single.path != null && ctx.mounted) {
-      _addPath(ctx, result.files.single.path!);
+      _dispatch(ctx, result.files.single.path!);
     }
   }
 
@@ -1365,69 +1504,221 @@ class _SheetOption extends StatelessWidget {
 class _AttachmentList extends StatelessWidget {
   final int labelId;
   final List<String> filePaths;
+  final bool isReadOnly;
   final bool isDark;
 
   const _AttachmentList({
     required this.labelId,
     required this.filePaths,
+    required this.isReadOnly,
     required this.isDark,
   });
 
-  String _fileName(String path) => path.split('/').last.split('\\').last;
+  static bool _isImage(String path) {
+    final ext = path.split('?').first.split('.').last.toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'heic', 'webp', 'gif'].contains(ext);
+  }
+
+  String _fileName(String path) =>
+      Uri.decodeFull(path.split('?').first.split('/').last.split('\\').last);
+
+  void _open(BuildContext context, String path) {
+    if (_isImage(path)) {
+      final imageUrls = filePaths.where(_isImage).toList();
+      final index = imageUrls.indexOf(path);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => _ImageGalleryViewer(
+            urls: imageUrls,
+            initialIndex: index,
+          ),
+        ),
+      );
+    } else {
+      launchUrl(Uri.parse(path), mode: LaunchMode.externalApplication);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: filePaths.map((path) {
         final name = _fileName(path);
-        final isImage = ['.jpg', '.jpeg', '.png', '.heic', '.webp']
-            .any((ext) => name.toLowerCase().endsWith(ext));
-        return Container(
-          margin: const EdgeInsets.only(bottom: 6),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: isDark ? AppTheme.darkSurface : AppTheme.scaffoldBg,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isDark ? AppTheme.darkBorder : const Color(0xFFE4E7EC),
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                isImage ? Icons.image_rounded : Icons.insert_drive_file_rounded,
-                size: 16,
-                color: AppTheme.primaryBranding,
+        final isImage = _isImage(path);
+        return GestureDetector(
+          onTap: () => _open(context, path),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: isDark ? AppTheme.darkSurface : AppTheme.scaffoldBg,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isDark ? AppTheme.darkBorder : const Color(0xFFE4E7EC),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: isDark ? AppTheme.darkTextHigh : AppTheme.textHighEmphasis,
+            ),
+            child: Row(
+              children: [
+                if (isImage)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: Image.network(
+                      path,
+                      width: 36,
+                      height: 36,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.image_rounded,
+                        size: 36,
+                        color: AppTheme.primaryBranding,
+                      ),
+                    ),
+                  )
+                else
+                  Icon(
+                    _fileIcon(name),
+                    size: 36,
+                    color: AppTheme.primaryBranding,
+                  ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: isDark
+                              ? AppTheme.darkTextHigh
+                              : AppTheme.textHighEmphasis,
+                        ),
+                      ),
+                      Text(
+                        isImage ? 'Tap to view' : 'Tap to open',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          color: isDark
+                              ? AppTheme.darkTextLow
+                              : AppTheme.textLowEmphasis,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  final updated = filePaths.where((p) => p != path).toList();
-                  context.read<ChecklistDetailBloc>().add(
-                        UpdateFileValue(labelId: labelId, paths: updated),
-                      );
-                },
-                child: Icon(
-                  Icons.close_rounded,
-                  size: 14,
-                  color: isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
-                ),
-              ),
-            ],
+                if (!isReadOnly)
+                  GestureDetector(
+                    onTap: () {
+                      final updated =
+                          filePaths.where((p) => p != path).toList();
+                      context.read<ChecklistDetailBloc>().add(
+                            UpdateFileValue(labelId: labelId, paths: updated),
+                          );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.close_rounded,
+                        size: 14,
+                        color: isDark
+                            ? AppTheme.darkTextLow
+                            : AppTheme.textLowEmphasis,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         );
       }).toList(),
+    );
+  }
+
+  IconData _fileIcon(String name) {
+    final ext = name.split('.').last.toLowerCase();
+    switch (ext) {
+      case 'pdf':
+        return Icons.picture_as_pdf_rounded;
+      case 'doc':
+      case 'docx':
+        return Icons.description_rounded;
+      case 'xls':
+      case 'xlsx':
+        return Icons.table_chart_rounded;
+      case 'mp4':
+      case 'mov':
+        return Icons.videocam_rounded;
+      default:
+        return Icons.insert_drive_file_rounded;
+    }
+  }
+}
+
+// ─────────────────────────────────────────
+// Full-screen image gallery viewer
+// ─────────────────────────────────────────
+class _ImageGalleryViewer extends StatefulWidget {
+  final List<String> urls;
+  final int initialIndex;
+  const _ImageGalleryViewer(
+      {required this.urls, required this.initialIndex});
+
+  @override
+  State<_ImageGalleryViewer> createState() => _ImageGalleryViewerState();
+}
+
+class _ImageGalleryViewerState extends State<_ImageGalleryViewer> {
+  late int _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.initialIndex;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(
+          '${_current + 1} / ${widget.urls.length}',
+          style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.open_in_browser_rounded, color: Colors.white),
+            onPressed: () => launchUrl(
+              Uri.parse(widget.urls[_current]),
+              mode: LaunchMode.externalApplication,
+            ),
+          ),
+        ],
+      ),
+      body: PhotoViewGallery.builder(
+        itemCount: widget.urls.length,
+        pageController: PageController(initialPage: widget.initialIndex),
+        onPageChanged: (i) => setState(() => _current = i),
+        builder: (_, i) => PhotoViewGalleryPageOptions(
+          imageProvider: NetworkImage(widget.urls[i]),
+          minScale: PhotoViewComputedScale.contained,
+          maxScale: PhotoViewComputedScale.covered * 3,
+          errorBuilder: (_, __, ___) => const Center(
+            child: Icon(Icons.broken_image_rounded,
+                color: Colors.white54, size: 48),
+          ),
+        ),
+        loadingBuilder: (_, __) => const Center(
+          child: CircularProgressIndicator(
+              color: AppTheme.primaryBranding, strokeWidth: 2),
+        ),
+      ),
     );
   }
 }

@@ -1,4 +1,23 @@
+import 'dart:convert';
 import '../../domain/entities/checklist_detail_entity.dart';
+
+/// Safe string coercion — handles String, num, bool, List, Map, null.
+/// Lists/Maps are JSON-encoded so callers can decode them if needed.
+String _str(dynamic v) {
+  if (v == null) return '';
+  if (v is String) return v;
+  if (v is List || v is Map) return jsonEncode(v);
+  return v.toString();
+}
+
+/// Safe bool coercion — handles bool, int (1/0), String ("true"/"1"), null.
+bool _parseBool(dynamic v) {
+  if (v == null) return false;
+  if (v is bool) return v;
+  if (v is int) return v != 0;
+  if (v is String) return v == '1' || v.toLowerCase() == 'true';
+  return false;
+}
 
 class ChecklistDetailRequestModel {
   final int checklistAssignmentId;
@@ -30,10 +49,18 @@ class ChecklistDetailResponseModel {
   });
 
   factory ChecklistDetailResponseModel.fromJson(Map<String, dynamic> json) {
-    final rawData = json['data'] as Map<String, dynamic>?;
+    // 'data' may be a Map, a List, or null depending on the API version
+    final raw = json['data'];
+    final Map<String, dynamic>? rawData = raw is Map<String, dynamic>
+        ? raw
+        : (raw is List && raw.isNotEmpty && raw.first is Map)
+            ? raw.first as Map<String, dynamic>
+            : null;
+
     return ChecklistDetailResponseModel(
-      status: json['status'] as bool? ?? false,
-      message: json['message'] as String? ?? '',
+      // status may come as bool true/false OR int 1/0
+      status: _parseBool(json['status']),
+      message: _str(json['message']),
       data: rawData != null ? ChecklistDetailDataModel.fromJson(rawData) : null,
     );
   }
@@ -53,11 +80,13 @@ class ChecklistDetailDataModel {
   });
 
   factory ChecklistDetailDataModel.fromJson(Map<String, dynamic> json) {
-    final raw = json['checkListDetails'] as List<dynamic>? ?? [];
+    final rawItems = json['checkListDetails'];
+    final raw = rawItems is List ? rawItems : <dynamic>[];
     return ChecklistDetailDataModel(
-      checklistName: json['checklistName'] as String? ?? '',
-      checklistStatus: json['checklistStatus'] as String? ?? '',
-      checklistAssignmentId: json['checklistAssignmentId'] as int? ?? 0,
+      checklistName: _str(json['checklistName']),
+      checklistStatus: _str(json['checklistStatus']),
+      checklistAssignmentId:
+          (json['checklistAssignmentId'] as num?)?.toInt() ?? 0,
       checkListDetails: raw
           .map((e) =>
               ChecklistDetailItemModel.fromJson(e as Map<String, dynamic>))
@@ -84,7 +113,7 @@ class ChecklistDetailItemModel {
   final String checklistStatus;
   final String checklistNote;
   final int checkListAssignmentValuesId;
-  final bool status;
+  final bool flagRaised;
   final String filePathsJson;
 
   const ChecklistDetailItemModel({
@@ -98,25 +127,28 @@ class ChecklistDetailItemModel {
     required this.checklistStatus,
     required this.checklistNote,
     required this.checkListAssignmentValuesId,
-    required this.status,
+    required this.flagRaised,
     required this.filePathsJson,
   });
 
   factory ChecklistDetailItemModel.fromJson(Map<String, dynamic> json) {
     return ChecklistDetailItemModel(
-      parentChecklistLabelId: json['parentChecklistLabelId'] as int? ?? 0,
-      parentChecklistId: json['parentChecklistId'] as int? ?? 0,
-      parentLabelName: json['parentLabelName'] as String? ?? '',
-      checklistDesc: json['checklistDesc'] as String? ?? '',
-      checklistValue: json['checklistValue'] as String? ?? '',
-      optionText: json['optionText'] as String? ?? '',
-      customFieldTypeName: json['customFieldTypeName'] as String? ?? '',
-      checklistStatus: json['checklistStatus'] as String? ?? '',
-      checklistNote: json['checklistNote'] as String? ?? '',
+      parentChecklistLabelId:
+          (json['parentChecklistLabelId'] as num?)?.toInt() ?? 0,
+      parentChecklistId:
+          (json['parentChecklistId'] as num?)?.toInt() ?? 0,
+      parentLabelName: _str(json['parentLabelName']),
+      checklistDesc: _str(json['checklistDesc']),
+      checklistValue: _str(json['checklistValue']),
+      optionText: _str(json['optionText']),
+      customFieldTypeName: _str(json['customFieldTypeName']),
+      checklistStatus: _str(json['checklistStatus']),
+      checklistNote: _str(json['checklistNote']),
       checkListAssignmentValuesId:
-          json['checkListAssignmentValuesId'] as int? ?? 0,
-      status: json['status'] as bool? ?? false,
-      filePathsJson: json['filePathsJson'] as String? ?? '',
+          (json['checkListAssignmentValuesId'] as num?)?.toInt() ?? 0,
+      flagRaised: _parseBool(json['flagRaised']),
+      // filePathsJson may arrive as a String, a List, or null
+      filePathsJson: _str(json['filePathsJson']),
     );
   }
 
@@ -131,7 +163,7 @@ class ChecklistDetailItemModel {
         checklistStatus: checklistStatus,
         checklistNote: checklistNote,
         checkListAssignmentValuesId: checkListAssignmentValuesId,
-        status: status,
+        flagRaised: flagRaised,
         filePathsJson: filePathsJson,
       );
 }

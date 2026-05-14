@@ -41,10 +41,10 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+    // Login screen is always light — always use dark status bar icons
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      statusBarIconBrightness: Brightness.dark,
     ));
   }
 
@@ -71,7 +71,8 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Login screen is always light regardless of app theme
+    const isDark = false;
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
@@ -90,8 +91,10 @@ class _LoginScreenState extends State<LoginScreen>
           ));
         }
       },
-      child: Scaffold(
-        backgroundColor: isDark ? AppTheme.darkBg : AppTheme.scaffoldBg,
+      child: Theme(
+        data: AppTheme.lightTheme,
+        child: Scaffold(
+        backgroundColor: AppTheme.scaffoldBg,
         body: SafeArea(
           child: FadeTransition(
             opacity: _fade,
@@ -122,9 +125,7 @@ class _LoginScreenState extends State<LoginScreen>
                         '© 2024 Wize Restaurant',
                         style: GoogleFonts.inter(
                           fontSize: 11,
-                          color: isDark
-                              ? AppTheme.darkTextLow
-                              : AppTheme.textLowEmphasis.withOpacity(0.7),
+                          color: AppTheme.textLowEmphasis.withOpacity(0.7),
                         ),
                       ),
                     ],
@@ -135,6 +136,7 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         ),
       ),
+      ), // Theme
     );
   }
 }

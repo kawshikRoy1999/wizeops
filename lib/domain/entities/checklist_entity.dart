@@ -15,7 +15,8 @@ class ChecklistEntity extends Equatable {
     required this.checklistStatus,
   });
 
-  bool get isSubmitted => checklistStatus.toLowerCase() == 'submit';
+  bool get isSubmitted =>
+      checklistStatus.toLowerCase().startsWith('submit');
 
   @override
   List<Object?> get props => [checklistAssignmentId, checklistId, checklistStatus];

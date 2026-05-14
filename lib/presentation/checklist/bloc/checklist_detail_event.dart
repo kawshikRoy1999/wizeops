@@ -60,3 +60,13 @@ class UpdateFileValue extends ChecklistDetailEvent {
   @override
   List<Object> get props => [labelId, paths];
 }
+
+class UploadFile extends ChecklistDetailEvent {
+  final int labelId;
+  final String filePath;
+
+  const UploadFile({required this.labelId, required this.filePath});
+
+  @override
+  List<Object> get props => [labelId, filePath];
+}

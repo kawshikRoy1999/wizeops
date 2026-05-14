@@ -459,7 +459,7 @@ class _SignOutButton extends StatelessWidget {
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             child: Row(
               children: [
-                Icon(Icons.logout_rounded,
+                const Icon(Icons.logout_rounded,
                     size: 17, color: AppTheme.statusError),
                 const SizedBox(width: 12),
                 Text(

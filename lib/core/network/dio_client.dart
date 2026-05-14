@@ -14,7 +14,11 @@ class DioClient {
         connectTimeout: ApiConstants.connectTimeout,
         receiveTimeout: ApiConstants.receiveTimeout,
         headers: {
-          'Content-Type': 'application/json',
+          // Do NOT set Content-Type globally — Dio sets it automatically:
+          //   application/json   → when data is Map/List
+          //   multipart/form-data; boundary=... → when data is FormData
+          // Setting it globally causes Dio 5.x to throw a conflict error
+          // for multipart requests.
           'Accept': 'application/json',
         },
       ),
