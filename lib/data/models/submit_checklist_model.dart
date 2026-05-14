@@ -26,7 +26,7 @@ class AssignCheckListItem {
   final int checklistLabelId;
   final String checklistValue;
   final String checklistNote;
-  final bool status; // flagRaised
+  final bool flagRaised;
   final List<FilePathRequest> filePaths;
 
   const AssignCheckListItem({
@@ -34,7 +34,7 @@ class AssignCheckListItem {
     required this.checklistLabelId,
     required this.checklistValue,
     required this.checklistNote,
-    required this.status,
+    required this.flagRaised,
     required this.filePaths,
   });
 
@@ -43,7 +43,7 @@ class AssignCheckListItem {
         'ChecklistLabelId': checklistLabelId,
         'ChecklistValue': checklistValue,
         'ChecklistNote': checklistNote,
-        'Status': status,
+        'FlagRaised': flagRaised,
         'FilePaths': filePaths.map((f) => f.toJson()).toList(),
       };
 }

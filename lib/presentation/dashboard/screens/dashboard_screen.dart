@@ -535,8 +535,25 @@ class _ProgressCircle extends StatelessWidget {
 
     final activeColor =
         submitted ? AppTheme.statusSuccess : AppTheme.primaryBranding;
-    final bgColor = activeColor.withOpacity(isDark ? 0.12 : 0.08);
-    final trackColor = activeColor.withOpacity(isDark ? 0.15 : 0.1);
+
+    // Solid dark-mode colors — no opacity stacking on dark backgrounds
+    final Color trackColor;
+    final Color innerFill;
+    if (isDark) {
+      trackColor = submitted
+          ? const Color(0xFF1E3A2A)   // dark green ring track
+          : const Color(0xFF1E2540);  // dark blue ring track
+      innerFill = submitted
+          ? const Color(0xFF172820)   // dark green inner
+          : const Color(0xFF161C35);  // dark blue inner
+    } else {
+      trackColor = submitted
+          ? const Color(0xFFBFE8D0)   // light green track
+          : const Color(0xFFCDD8F8);  // light blue track
+      innerFill = submitted
+          ? const Color(0xFFE6F4EB)   // light green inner
+          : const Color(0xFFEEF2FF);  // light blue inner
+    }
 
     return SizedBox(
       width: 44,
@@ -544,7 +561,7 @@ class _ProgressCircle extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Track ring
+          // Track ring (full circle background)
           SizedBox(
             width: 44,
             height: 44,
@@ -554,7 +571,7 @@ class _ProgressCircle extends StatelessWidget {
               color: trackColor,
             ),
           ),
-          // Progress ring
+          // Progress arc
           SizedBox(
             width: 44,
             height: 44,
@@ -565,12 +582,12 @@ class _ProgressCircle extends StatelessWidget {
               backgroundColor: Colors.transparent,
             ),
           ),
-          // Inner fill + fraction
+          // Inner circle + fraction / check
           Container(
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: bgColor,
+              color: innerFill,
               shape: BoxShape.circle,
             ),
             child: submitted

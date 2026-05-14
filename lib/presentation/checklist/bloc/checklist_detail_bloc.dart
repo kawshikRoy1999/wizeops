@@ -219,7 +219,7 @@ class ChecklistDetailBloc
         checklistLabelId: labelId,
         checklistValue: current.fieldValues[labelId] ?? '',
         checklistNote: current.noteValues[labelId] ?? '',
-        status: current.flagValues[labelId] ?? false,
+        flagRaised: current.flagValues[labelId] ?? false,
         filePaths: filePaths,
       );
     }).toList();
