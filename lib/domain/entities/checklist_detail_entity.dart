@@ -67,7 +67,7 @@ class ChecklistDetailSummary extends Equatable {
 
   bool get isSubmitted {
     final s = checklistStatus.toLowerCase();
-    return s == 'completed' || s == 'submit';
+    return s == 'completed' || s == 'submit' || s == 'submitted';
   }
 
   @override

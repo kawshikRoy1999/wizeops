@@ -627,11 +627,11 @@ class _StatusBadge extends StatelessWidget {
     final Color border;
     final String label;
 
-    if (s == 'completed' || s == 'submit') {
+    if (s == 'completed' || s == 'submit' || s == 'submitted') {
       fg = AppTheme.statusSuccess;
       bg = AppTheme.statusSuccess.withOpacity(0.12);
       border = AppTheme.statusSuccess.withOpacity(0.3);
-      label = 'Completed';
+      label = 'Submitted';
     } else if (s == 'save') {
       fg = const Color(0xFFB45309);       // amber-700
       bg = const Color(0xFFFEF3C7);       // amber-100

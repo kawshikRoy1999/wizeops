@@ -278,11 +278,11 @@ class _StatusBar extends StatelessWidget {
     final String message;
     final String badge;
 
-    if (s == 'completed' || s == 'submit') {
+    if (s == 'completed' || s == 'submit' || s == 'submitted') {
       color = AppTheme.statusSuccess;
       icon = Icons.check_circle_rounded;
-      message = 'This checklist has been completed';
-      badge = 'Completed';
+      message = 'This checklist has been submitted';
+      badge = 'Submitted';
     } else if (s == 'save') {
       color = const Color(0xFFB45309);
       icon = Icons.save_rounded;
@@ -1365,7 +1365,7 @@ class _ReadOnlyBanner extends StatelessWidget {
     final color = isCompleted ? AppTheme.statusSuccess : const Color(0xFF6B7280);
     final icon = isCompleted ? Icons.check_circle_rounded : Icons.history_rounded;
     final message = isCompleted
-        ? 'This checklist has been completed and is view-only.'
+        ? 'This checklist has been submitted and is view-only.'
         : 'Only today\'s checklists can be edited. This is view-only.';
 
     return Container(
@@ -2163,16 +2163,16 @@ class _SubmitBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          // Complete button
+          // Submit button
           Expanded(
             child: _SubmitButton(
-              label: 'Complete',
+              label: 'Submit',
               icon: Icons.check_circle_outline_rounded,
-              isLoading: submittingStatus == 'Completed',
+              isLoading: submittingStatus == 'Submit',
               isDisabled: submittingStatus != null,
               filled: true,
               isDark: isDark,
-              onTap: () => _submit(context, 'Completed'),
+              onTap: () => _submit(context, 'Submit'),
             ),
           ),
         ],
