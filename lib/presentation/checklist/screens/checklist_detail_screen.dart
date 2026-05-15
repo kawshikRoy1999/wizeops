@@ -278,7 +278,7 @@ class _StatusBar extends StatelessWidget {
     final String message;
     final String badge;
 
-    if (s == 'completed') {
+    if (s == 'completed' || s == 'submit') {
       color = AppTheme.statusSuccess;
       icon = Icons.check_circle_rounded;
       message = 'This checklist has been completed';
@@ -744,6 +744,13 @@ class _QuestionCard extends StatelessWidget {
   }
 }
 
+/// Strips the internal code suffix from option values.
+/// e.g. "Done#87_chk_1" → "Done",  "Yes#12_chk_2" → "Yes"
+String _optionLabel(String raw) {
+  final idx = raw.indexOf('#');
+  return idx > 0 ? raw.substring(0, idx).trim() : raw.trim();
+}
+
 // ─────────────────────────────────────────
 // Read-Only Answer Display
 // ─────────────────────────────────────────
@@ -820,6 +827,7 @@ class _ReadOnlyAnswerDisplay extends StatelessWidget {
       spacing: 8,
       runSpacing: 6,
       children: items.map((item) {
+        final label = _optionLabel(item);
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
@@ -839,7 +847,7 @@ class _ReadOnlyAnswerDisplay extends StatelessWidget {
                       : const Color(0xFF1E7A3F)),
               const SizedBox(width: 6),
               Text(
-                item,
+                label,
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -1065,7 +1073,7 @@ class _RadioField extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  opt,
+                  _optionLabel(opt),
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
@@ -1146,7 +1154,7 @@ class _DropdownField extends StatelessWidget {
           items: options
               .map((opt) => DropdownMenuItem(
                     value: opt,
-                    child: Text(opt),
+                    child: Text(_optionLabel(opt)),
                   ))
               .toList(),
         ),
@@ -1240,7 +1248,7 @@ class _CheckboxField extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  opt,
+                  _optionLabel(opt),
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight:

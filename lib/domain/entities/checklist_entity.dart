@@ -19,8 +19,10 @@ class ChecklistEntity extends Equatable {
     this.totalCount = 0,
   });
 
-  bool get isSubmitted =>
-      checklistStatus.toLowerCase() == 'completed';
+  bool get isSubmitted {
+    final s = checklistStatus.toLowerCase();
+    return s == 'completed' || s == 'submit';
+  }
 
   double get progressRatio =>
       totalCount > 0 ? (totalFilledCount / totalCount).clamp(0.0, 1.0) : 0.0;

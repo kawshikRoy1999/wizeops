@@ -627,7 +627,7 @@ class _StatusBadge extends StatelessWidget {
     final Color border;
     final String label;
 
-    if (s == 'completed') {
+    if (s == 'completed' || s == 'submit') {
       fg = AppTheme.statusSuccess;
       bg = AppTheme.statusSuccess.withOpacity(0.12);
       border = AppTheme.statusSuccess.withOpacity(0.3);
