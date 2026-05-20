@@ -459,10 +459,10 @@ class _QuestionCard extends StatelessWidget {
         boxShadow: isDark || isReadOnly
             ? []
             : [
-                BoxShadow(
-                  color: const Color(0x08000000),
+                const BoxShadow(
+                  color: Color(0x08000000),
                   blurRadius: 6,
-                  offset: const Offset(0, 2),
+                  offset: Offset(0, 2),
                 ),
               ],
       ),
@@ -549,6 +549,11 @@ class _QuestionCard extends StatelessWidget {
           fieldType: detail.fieldType,
           isDark: isDark,
         ),
+        // Action steps button — guidance from management
+        if (detail.actionSteps.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          _ActionStepsButton(steps: detail.actionSteps, isDark: isDark),
+        ],
         // Note — only if non-empty
         if (hasNote) ...[
           const SizedBox(height: 10),
@@ -641,6 +646,11 @@ class _QuestionCard extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         _buildField(context),
+        // Action steps button — guidance from management
+        if (detail.actionSteps.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          _ActionStepsButton(steps: detail.actionSteps, isDark: isDark),
+        ],
         const SizedBox(height: 14),
         _Divider(isDark: isDark),
         const SizedBox(height: 12),
@@ -954,6 +964,265 @@ class _FlagChip extends StatelessWidget {
               fontWeight: FontWeight.w600,
               color: isDark ? const Color(0xFFFF8080) : const Color(0xFFD93030),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Action Steps Button + Bottom Sheet
+// ─────────────────────────────────────────
+class _ActionStepsButton extends StatelessWidget {
+  final List<String> steps;
+  final bool isDark;
+  const _ActionStepsButton({required this.steps, required this.isDark});
+
+  void _show(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _ActionStepsSheet(steps: steps, isDark: isDark),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _show(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isDark
+              ? const Color(0xFF1A2035)
+              : const Color(0xFFEEF4FF),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isDark
+                ? const Color(0xFF2A3A5C)
+                : const Color(0xFFBDD0F8),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.checklist_rtl_rounded,
+              size: 14,
+              color: isDark
+                  ? const Color(0xFF7EA8F8)
+                  : AppTheme.primaryBranding,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'View Steps',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isDark
+                    ? const Color(0xFF7EA8F8)
+                    : AppTheme.primaryBranding,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF2A3A5C)
+                    : AppTheme.primaryBranding.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${steps.length}',
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: isDark
+                      ? const Color(0xFF7EA8F8)
+                      : AppTheme.primaryBranding,
+                ),
+              ),
+            ),
+            const Spacer(),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 16,
+              color: isDark
+                  ? const Color(0xFF7EA8F8)
+                  : AppTheme.primaryBranding,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionStepsSheet extends StatelessWidget {
+  final List<String> steps;
+  final bool isDark;
+  const _ActionStepsSheet({required this.steps, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkCard : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isDark
+                    ? AppTheme.darkBorder
+                    : const Color(0xFFDDE1E7),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          // Header row
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF1A2035)
+                        : const Color(0xFFEEF4FF),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.checklist_rtl_rounded,
+                    size: 18,
+                    color: isDark
+                        ? const Color(0xFF7EA8F8)
+                        : AppTheme.primaryBranding,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Action Steps',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? AppTheme.darkTextHigh
+                              : AppTheme.textHighEmphasis,
+                        ),
+                      ),
+                      Text(
+                        '${steps.length} step${steps.length > 1 ? 's' : ''} to follow',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: isDark
+                              ? AppTheme.darkTextLow
+                              : AppTheme.textLowEmphasis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? AppTheme.darkSurface
+                          : const Color(0xFFF3F4F6),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 16,
+                      color: isDark
+                          ? AppTheme.darkTextLow
+                          : AppTheme.textLowEmphasis,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Divider
+          Divider(
+            height: 1,
+            color: isDark ? AppTheme.darkBorder : const Color(0xFFEEF0F4),
+          ),
+          // Steps list
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.55,
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              itemCount: steps.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (_, i) => Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF1E2D4D)
+                          : const Color(0xFFDEEBFF),
+                      borderRadius: BorderRadius.circular(7),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${i + 1}',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? const Color(0xFF7EA8F8)
+                              : AppTheme.primaryBranding,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      steps[i],
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: isDark
+                            ? AppTheme.darkTextHigh
+                            : AppTheme.textHighEmphasis,
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SafeArea(
+            top: false,
+            child: const SizedBox(height: 8),
           ),
         ],
       ),

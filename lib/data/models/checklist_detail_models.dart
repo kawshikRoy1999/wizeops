@@ -115,6 +115,8 @@ class ChecklistDetailItemModel {
   final int checkListAssignmentValuesId;
   final bool flagRaised;
   final String filePathsJson;
+  /// Raw HTML from the API, e.g. "<p>step 1</p><p>step 2</p>" or empty string
+  final String storeActionsteps;
 
   const ChecklistDetailItemModel({
     required this.parentChecklistLabelId,
@@ -129,6 +131,7 @@ class ChecklistDetailItemModel {
     required this.checkListAssignmentValuesId,
     required this.flagRaised,
     required this.filePathsJson,
+    required this.storeActionsteps,
   });
 
   factory ChecklistDetailItemModel.fromJson(Map<String, dynamic> json) {
@@ -147,8 +150,8 @@ class ChecklistDetailItemModel {
       checkListAssignmentValuesId:
           (json['checkListAssignmentValuesId'] as num?)?.toInt() ?? 0,
       flagRaised: _parseBool(json['flagRaised']),
-      // filePathsJson may arrive as a String, a List, or null
       filePathsJson: _str(json['filePathsJson']),
+      storeActionsteps: _str(json['storeActionsteps']),
     );
   }
 
@@ -165,5 +168,6 @@ class ChecklistDetailItemModel {
         checkListAssignmentValuesId: checkListAssignmentValuesId,
         flagRaised: flagRaised,
         filePathsJson: filePathsJson,
+        storeActionsteps: storeActionsteps,
       );
 }

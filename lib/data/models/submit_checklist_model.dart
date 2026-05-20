@@ -1,4 +1,5 @@
 /// ─── Request ────────────────────────────────────────────────────────────────
+library;
 
 class FilePathRequest {
   final int mapId;
