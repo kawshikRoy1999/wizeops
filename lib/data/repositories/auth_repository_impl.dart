@@ -44,6 +44,10 @@ class AuthRepositoryImpl implements AuthRepository {
         key: AppConstants.companyIdKey,
         value: userModel.companyId.toString(),
       );
+      await secureStorage.write(
+        key: AppConstants.rememberMeKey,
+        value: rememberMe ? '1' : '0',
+      );
 
       final entity = userModel.toEntity();
       await _cacheUser(userModel);
@@ -65,6 +69,7 @@ class AuthRepositoryImpl implements AuthRepository {
     await secureStorage.delete(key: AppConstants.tokenKey);
     await secureStorage.delete(key: AppConstants.userKey);
     await secureStorage.delete(key: AppConstants.companyIdKey);
+    await secureStorage.delete(key: AppConstants.rememberMeKey);
   }
 
   @override
@@ -77,6 +82,12 @@ class AuthRepositoryImpl implements AuthRepository {
     } catch (_) {
       return null;
     }
+  }
+
+  @override
+  Future<bool> getRememberMe() async {
+    final val = await secureStorage.read(key: AppConstants.rememberMeKey);
+    return val == '1';
   }
 
   Future<void> _cacheUser(UserDataModel model) async {

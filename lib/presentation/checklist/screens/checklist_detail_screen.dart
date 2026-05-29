@@ -235,7 +235,15 @@ class _LoadedView extends StatelessWidget {
         // Questions list
         Expanded(
           child: ListView.separated(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, isReadOnly ? 24 : 16),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              isReadOnly
+                  // Add system nav-bar height so last item clears the gesture bar
+                  ? 24 + MediaQuery.of(context).padding.bottom
+                  : 16,
+            ),
             itemCount: summary.details.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, i) {
@@ -592,8 +600,10 @@ class _QuestionCard extends StatelessWidget {
               height: 24,
               decoration: BoxDecoration(
                 color: answered
-                    ? AppTheme.statusSuccess.withOpacity(0.12)
-                    : AppTheme.primaryBranding.withOpacity(0.08),
+                    ? AppTheme.statusSuccess.withOpacity(isDark ? 0.2 : 0.12)
+                    : isDark
+                        ? const Color(0xFF6B9FE4).withOpacity(0.15)
+                        : AppTheme.primaryBranding.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Center(
@@ -604,7 +614,9 @@ class _QuestionCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                     color: answered
                         ? AppTheme.statusSuccess
-                        : AppTheme.primaryBranding,
+                        : isDark
+                            ? const Color(0xFF6B9FE4)
+                            : AppTheme.primaryBranding,
                   ),
                 ),
               ),
@@ -2473,12 +2485,21 @@ class _SubmitButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color fg = filled ? Colors.white : AppTheme.primaryBranding;
+    // primaryBranding (#2C3E50) is near-black — invisible on dark surfaces.
+    // Use light blue for the outline/draft button in dark mode.
+    const Color darkAccent = Color(0xFF6B9FE4);
+    final Color fg = filled
+        ? Colors.white
+        : isDark
+            ? darkAccent
+            : AppTheme.primaryBranding;
     final Color bg = filled
         ? (isDisabled && !isLoading
             ? AppTheme.statusSuccess.withOpacity(0.4)
             : AppTheme.statusSuccess)
-        : (isDark ? AppTheme.darkCard : AppTheme.primaryBranding.withOpacity(0.06));
+        : (isDark
+            ? darkAccent.withOpacity(0.12)
+            : AppTheme.primaryBranding.withOpacity(0.06));
 
     return GestureDetector(
       onTap: isDisabled ? null : onTap,
@@ -2491,8 +2512,11 @@ class _SubmitButton extends StatelessWidget {
           border: filled
               ? null
               : Border.all(
-                  color: AppTheme.primaryBranding.withOpacity(
-                      isDisabled && !isLoading ? 0.1 : (isDark ? 0.3 : 0.2)),
+                  color: isDark
+                      ? darkAccent.withOpacity(
+                          isDisabled && !isLoading ? 0.2 : 0.45)
+                      : AppTheme.primaryBranding.withOpacity(
+                          isDisabled && !isLoading ? 0.1 : 0.2),
                 ),
         ),
         child: Center(

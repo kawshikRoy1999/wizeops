@@ -59,12 +59,15 @@ class _DashboardView extends StatelessWidget {
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
         appBar: _buildAppBar(context, isDark),
-        body: Column(
-          children: [
-            _GreetingHeader(user: user, isDark: isDark),
-            _DatePickerBar(user: user, isDark: isDark),
-            Expanded(child: _ChecklistBody(user: user, isDark: isDark)),
-          ],
+        body: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              _GreetingHeader(user: user, isDark: isDark),
+              _DatePickerBar(user: user, isDark: isDark),
+              Expanded(child: _ChecklistBody(user: user, isDark: isDark)),
+            ],
+          ),
         ),
       ),
     );
@@ -205,6 +208,19 @@ class _DatePickerBar extends StatelessWidget {
   String _formatDate(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
+  void _navigateDay(BuildContext context, DateTime current, int offset) {
+    final firstDate = DateTime(2020);
+    final lastDate  = DateTime(2030, 12, 31);
+    final next = DateTime(current.year, current.month, current.day + offset);
+    if (next.isBefore(firstDate) || next.isAfter(lastDate)) return;
+    context.read<ChecklistBloc>().add(FetchChecklists(
+          assignDateTime: _formatDate(next),
+          companyId: user.companyId,
+          userId: user.id,
+          selectedDate: next,
+        ));
+  }
+
   Future<void> _pickDate(BuildContext context, DateTime current) async {
     final picked = await showDatePicker(
       context: context,
@@ -236,7 +252,10 @@ class _DatePickerBar extends StatelessWidget {
                   ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: AppTheme.primaryBranding,
+                // primaryBranding (#2C3E50) is near-black — invisible on dark dialog.
+                foregroundColor: dark
+                    ? const Color(0xFF6B9FE4) // light blue, matches dark-mode arc colour
+                    : AppTheme.primaryBranding,
                 textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
               ),
             ),
@@ -294,6 +313,14 @@ class _DatePickerBar extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
+              // ── Previous day ──
+              _DayNavButton(
+                icon: Icons.chevron_left_rounded,
+                onTap: () => _navigateDay(context, date, -1),
+                isDark: isDark,
+              ),
+              const SizedBox(width: 4),
+              // ── Date pill (tap to open calendar) ──
               GestureDetector(
                 onTap: () => _pickDate(context, date),
                 child: Container(
@@ -330,6 +357,13 @@ class _DatePickerBar extends StatelessWidget {
                     ],
                   ),
                 ),
+              ),
+              const SizedBox(width: 4),
+              // ── Next day ──
+              _DayNavButton(
+                icon: Icons.chevron_right_rounded,
+                onTap: () => _navigateDay(context, date, 1),
+                isDark: isDark,
               ),
               const Spacer(),
               // Refresh
@@ -533,8 +567,13 @@ class _ProgressCircle extends StatelessWidget {
     final total = item.totalCount as int;
     final ratio = item.progressRatio as double;
 
-    final activeColor =
-        submitted ? AppTheme.statusSuccess : AppTheme.primaryBranding;
+    // primaryBranding (#2C3E50) is near-black — invisible on dark inner fills.
+    // Use a brighter blue in dark mode so the arc and fraction text are legible.
+    final activeColor = submitted
+        ? AppTheme.statusSuccess
+        : isDark
+            ? const Color(0xFF6B9FE4)   // light blue — visible on #161C35
+            : AppTheme.primaryBranding; // dark navy — visible on #EEF2FF
 
     // Solid dark-mode colors — no opacity stacking on dark backgrounds
     final Color trackColor;
@@ -593,15 +632,18 @@ class _ProgressCircle extends StatelessWidget {
             child: submitted
                 ? Icon(Icons.check_rounded, size: 16, color: activeColor)
                 : Center(
-                    child: Text(
-                      '$filled/$total',
-                      style: GoogleFonts.inter(
-                        fontSize: total >= 10 ? 9 : 10,
-                        fontWeight: FontWeight.w700,
-                        color: activeColor,
-                        height: 1,
-                      ),
-                    ),
+                    child: total == 0
+                        ? Icon(Icons.hourglass_empty_rounded,
+                            size: 14, color: activeColor)
+                        : Text(
+                            '$filled/$total',
+                            style: GoogleFonts.inter(
+                              fontSize: total >= 10 ? 9 : 10,
+                              fontWeight: FontWeight.w700,
+                              color: activeColor,
+                              height: 1,
+                            ),
+                          ),
                   ),
           ),
         ],
@@ -629,19 +671,19 @@ class _StatusBadge extends StatelessWidget {
 
     if (s == 'completed' || s == 'submit' || s == 'submitted') {
       fg = AppTheme.statusSuccess;
-      bg = AppTheme.statusSuccess.withOpacity(0.12);
-      border = AppTheme.statusSuccess.withOpacity(0.3);
+      bg = isDark ? const Color(0xFF1A3028) : AppTheme.statusSuccess.withOpacity(0.12);
+      border = isDark ? const Color(0xFF2A5040) : AppTheme.statusSuccess.withOpacity(0.3);
       label = 'Submitted';
     } else if (s == 'save') {
-      fg = const Color(0xFFB45309);       // amber-700
-      bg = const Color(0xFFFEF3C7);       // amber-100
-      border = const Color(0xFFFCD34D);   // amber-300
+      fg = isDark ? const Color(0xFFFFCA28) : const Color(0xFFB45309);
+      bg = isDark ? const Color(0xFF2D2200) : const Color(0xFFFEF3C7);
+      border = isDark ? const Color(0xFF4D3A00) : const Color(0xFFFCD34D);
       label = 'Draft';
     } else {
       fg = isDark ? AppTheme.darkTextHigh : AppTheme.primaryBranding;
-      bg = isDark ? AppTheme.darkBorder : const Color(0xFFF0F4FF);
+      bg = isDark ? const Color(0xFF1E2A3A) : const Color(0xFFF0F4FF);
       border = isDark
-          ? AppTheme.darkBorder
+          ? const Color(0xFF2A3D5C)
           : AppTheme.primaryBranding.withOpacity(0.15);
       label = 'Pending';
     }
@@ -659,6 +701,43 @@ class _StatusBadge extends StatelessWidget {
           fontSize: 11,
           fontWeight: FontWeight.w600,
           color: fg,
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Day Navigation Button (prev / next)
+// ─────────────────────────────────────────
+class _DayNavButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool isDark;
+  const _DayNavButton({
+    required this.icon,
+    required this.onTap,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: AppTheme.primaryBranding.withOpacity(isDark ? 0.2 : 0.07),
+          borderRadius: BorderRadius.circular(7),
+          border: Border.all(
+            color: AppTheme.primaryBranding.withOpacity(isDark ? 0.35 : 0.18),
+          ),
+        ),
+        child: Icon(
+          icon,
+          size: 18,
+          color: isDark ? AppTheme.darkTextHigh : AppTheme.primaryBranding,
         ),
       ),
     );

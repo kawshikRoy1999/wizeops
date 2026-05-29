@@ -5,4 +5,5 @@ class AppConstants {
   static const String tokenKey = 'jwt_token';
   static const String userKey = 'user_data';
   static const String companyIdKey = 'company_id';
+  static const String rememberMeKey = 'remember_me';
 }

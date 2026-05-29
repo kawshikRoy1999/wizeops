@@ -122,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                       const SizedBox(height: 24),
                       Text(
-                        '© 2024 Wize Restaurant',
+                        '© ${DateTime.now().year} Wize Restaurant',
                         style: GoogleFonts.inter(
                           fontSize: 11,
                           color: AppTheme.textLowEmphasis.withOpacity(0.7),

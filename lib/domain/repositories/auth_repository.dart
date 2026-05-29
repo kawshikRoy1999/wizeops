@@ -12,4 +12,5 @@ abstract class AuthRepository {
 
   Future<void> logout();
   Future<UserEntity?> getCachedUser();
+  Future<bool> getRememberMe();
 }

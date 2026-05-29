@@ -55,8 +55,10 @@ class SettingsScreen extends StatelessWidget {
           ),
           centerTitle: false,
         ),
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        body: SafeArea(
+          top: false,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           children: [
             // ── Profile Card ──
             _ProfileCard(user: user, isDark: isDark),
@@ -107,6 +109,7 @@ class SettingsScreen extends StatelessWidget {
             const SizedBox(height: 10),
             _SignOutButton(isDark: isDark),
           ],
+          ),
         ),
       ),
     );

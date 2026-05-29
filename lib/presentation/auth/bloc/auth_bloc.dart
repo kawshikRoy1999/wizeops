@@ -15,9 +15,23 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required this.loginUseCase,
     required this.authRepository,
   }) : super(const AuthInitial()) {
+    on<AppStarted>(_onAppStarted);
     on<LoginSubmitted>(_onLoginSubmitted);
     on<LogoutRequested>(_onLogoutRequested);
     on<PasswordVisibilityToggled>(_onPasswordVisibilityToggled);
+  }
+
+  Future<void> _onAppStarted(
+    AppStarted event,
+    Emitter<AuthState> emit,
+  ) async {
+    final remember = await authRepository.getRememberMe();
+    if (!remember) return; // no auto-login — stay at AuthInitial
+
+    final user = await authRepository.getCachedUser();
+    if (user != null) {
+      emit(AuthSuccess(user: user));
+    }
   }
 
   Future<void> _onLoginSubmitted(
