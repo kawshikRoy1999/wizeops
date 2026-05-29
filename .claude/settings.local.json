@@ -5,7 +5,8 @@
       "Bash(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\Admin\\\\.claude\\\\projects\\\\D--RMS-APP\\\\memory\")",
       "Bash(Out-Null)",
       "Bash(Write-Output \"Directory ready\")",
-      "Bash(dart analyze *)"
+      "Bash(dart analyze *)",
+      "Bash(flutter analyze *)"
     ]
   }
 }

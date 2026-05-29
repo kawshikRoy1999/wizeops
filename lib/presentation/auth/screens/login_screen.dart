@@ -94,48 +94,55 @@ class _LoginScreenState extends State<LoginScreen>
       child: Theme(
         data: AppTheme.lightTheme,
         child: Scaffold(
-        backgroundColor: AppTheme.scaffoldBg,
-        body: SafeArea(
-          child: FadeTransition(
-            opacity: _fade,
-            child: SlideTransition(
-              position: _slide,
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const _BrandMark(isDark: isDark),
-                      const SizedBox(height: 40),
-                      _LoginCard(
-                        formKey: _formKey,
-                        emailCtrl: _emailCtrl,
-                        passCtrl: _passCtrl,
-                        emailFocus: _emailFocus,
-                        passFocus: _passFocus,
-                        rememberMe: _rememberMe,
-                        isDark: isDark,
-                        onRememberChanged: (v) =>
-                            setState(() => _rememberMe = v),
-                        onSubmit: _submit,
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        '© ${DateTime.now().year} Wize Restaurant',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          color: AppTheme.textLowEmphasis.withOpacity(0.7),
+          backgroundColor: const Color(0xFF35587A),
+          body: Stack(
+            children: [
+              // ── Restaurant atmosphere background ──
+              const _RestaurantBackground(),
+              // ── Content ──
+              SafeArea(
+                child: FadeTransition(
+                  opacity: _fade,
+                  child: SlideTransition(
+                    position: _slide,
+                    child: Center(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const _BrandMark(),
+                            const SizedBox(height: 36),
+                            _LoginCard(
+                              formKey: _formKey,
+                              emailCtrl: _emailCtrl,
+                              passCtrl: _passCtrl,
+                              emailFocus: _emailFocus,
+                              passFocus: _passFocus,
+                              rememberMe: _rememberMe,
+                              isDark: isDark,
+                              onRememberChanged: (v) =>
+                                  setState(() => _rememberMe = v),
+                              onSubmit: _submit,
+                            ),
+                            const SizedBox(height: 28),
+                            Text(
+                              '© ${DateTime.now().year} Wize Restaurant',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                color: Colors.white.withOpacity(0.35),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
-      ),
       ), // Theme
     );
   }
@@ -145,44 +152,86 @@ class _LoginScreenState extends State<LoginScreen>
 // Brand Mark
 // ─────────────────────────────────────────
 class _BrandMark extends StatelessWidget {
-  final bool isDark;
-  const _BrandMark({required this.isDark});
+  const _BrandMark();
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
+        // Logo with amber glow ring
         Container(
-          width: 52,
-          height: 52,
+          width: 68,
+          height: 68,
           decoration: BoxDecoration(
-            color: AppTheme.primaryBranding,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.actionAccent.withOpacity(0.35),
+                blurRadius: 28,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
-          child: Center(
-            child: Text('W',
-                style: GoogleFonts.inter(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                  height: 1,
-                )),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF2C3E50), Color(0xFF1A252F)],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppTheme.actionAccent.withOpacity(0.4),
+                width: 1.5,
+              ),
+            ),
+            child: Center(
+              child: Text('W',
+                  style: GoogleFonts.inter(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    height: 1,
+                  )),
+            ),
           ),
         ),
-        const SizedBox(height: 14),
-        Text('WizeOps',
-            style: GoogleFonts.inter(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: isDark ? AppTheme.darkTextHigh : AppTheme.textHighEmphasis,
-              letterSpacing: -0.4,
-            )),
-        const SizedBox(height: 3),
-        Text('Restaurant Operations',
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
-            )),
+        const SizedBox(height: 16),
+        Text(
+          'WizeOps',
+          style: GoogleFonts.inter(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+            letterSpacing: -0.3,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 20,
+              height: 1,
+              color: AppTheme.actionAccent.withOpacity(0.6),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Restaurant Operations',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: Colors.white.withOpacity(0.55),
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              width: 20,
+              height: 1,
+              color: AppTheme.actionAccent.withOpacity(0.6),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -245,23 +294,40 @@ class _LoginCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Welcome back',
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: isDark
-                      ? AppTheme.darkTextHigh
-                      : AppTheme.textHighEmphasis,
-                  letterSpacing: -0.3,
-                )),
-            const SizedBox(height: 4),
-            Text('Sign in to continue',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color:
-                      isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
-                )),
-            const SizedBox(height: 28),
+            // ── Amber accent bar ──
+            Container(
+              width: 28,
+              height: 3,
+              decoration: BoxDecoration(
+                color: AppTheme.actionAccent,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Welcome Back',
+              style: GoogleFonts.inter(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: isDark
+                    ? AppTheme.darkTextHigh
+                    : AppTheme.textHighEmphasis,
+                letterSpacing: -0.5,
+                height: 1.1,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'Sign in to your account',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: isDark
+                    ? AppTheme.darkTextLow
+                    : AppTheme.textLowEmphasis,
+                letterSpacing: 0.1,
+              ),
+            ),
+            const SizedBox(height: 26),
 
             _Field(
               ctrl: emailCtrl,
@@ -287,18 +353,18 @@ class _LoginCard extends StatelessWidget {
                 action: TextInputAction.done,
                 isDark: isDark,
                 onSubmitted: (_) => onSubmit(),
-                trailing: GestureDetector(
+                suffixIcon: GestureDetector(
                   onTap: () => context
                       .read<AuthBloc>()
                       .add(const PasswordVisibilityToggled()),
-                  child: Text(
-                    state.isPasswordVisible ? 'Hide' : 'Show',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isDark
-                          ? AppTheme.darkTextHigh
-                          : AppTheme.primaryBranding,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 14),
+                    child: Icon(
+                      state.isPasswordVisible
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      size: 19,
+                      color: AppTheme.textLowEmphasis,
                     ),
                   ),
                 ),
@@ -353,7 +419,7 @@ class _Field extends StatefulWidget {
   final TextInputType keyboardType;
   final TextInputAction action;
   final ValueChanged<String>? onSubmitted;
-  final Widget? trailing;
+  final Widget? suffixIcon;
   final String? Function(String?)? validator;
 
   const _Field({
@@ -366,7 +432,7 @@ class _Field extends StatefulWidget {
     this.keyboardType = TextInputType.text,
     required this.action,
     this.onSubmitted,
-    this.trailing,
+    this.suffixIcon,
     this.validator,
   });
 
@@ -403,20 +469,14 @@ class _FieldState extends State<_Field> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 180),
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: labelColor,
-              ),
-              child: Text(widget.label),
-            ),
-            if (widget.trailing != null) widget.trailing!,
-          ],
+        AnimatedDefaultTextStyle(
+          duration: const Duration(milliseconds: 180),
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: labelColor,
+          ),
+          child: Text(widget.label),
         ),
         const SizedBox(height: 7),
         TextFormField(
@@ -446,6 +506,7 @@ class _FieldState extends State<_Field> {
                 : (_focused
                     ? AppTheme.primaryBranding.withOpacity(0.03)
                     : const Color(0xFFF7F8FA)),
+            suffixIcon: widget.suffixIcon,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
@@ -568,6 +629,217 @@ class _SubmitButtonState extends State<_SubmitButton> {
                     letterSpacing: 0.1,
                   )),
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
+// Restaurant Background
+// ─────────────────────────────────────────
+class _RestaurantBackground extends StatelessWidget {
+  const _RestaurantBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    return SizedBox.expand(
+      child: Stack(
+        children: [
+          // ── Base gradient: warm slate → medium navy ──
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF4A6E8F),  // medium slate-blue
+                  Color(0xFF35587A),  // medium navy
+                  Color(0xFF243F5C),  // slightly deeper at bottom
+                ],
+                stops: [0.0, 0.55, 1.0],
+              ),
+            ),
+          ),
+
+          // ── Warm amber top glow (candlelight) ──
+          Positioned(
+            top: -size.height * 0.05,
+            left: size.width * 0.05,
+            right: size.width * 0.05,
+            child: Container(
+              height: size.height * 0.48,
+              decoration: const BoxDecoration(
+                gradient: RadialGradient(
+                  colors: [
+                    Color(0x40F5A623),  // warm amber — stronger than before
+                    Colors.transparent,
+                  ],
+                  radius: 0.72,
+                ),
+              ),
+            ),
+          ),
+
+          // ── Soft white highlight top-left ──
+          Positioned(
+            top: -30,
+            left: -30,
+            child: Container(
+              width: 200,
+              height: 200,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [Color(0x18FFFFFF), Colors.transparent],
+                ),
+              ),
+            ),
+          ),
+
+          // ── Bokeh circles ──
+          _BokehBlob(
+            left: size.width * 0.76,
+            top: size.height * 0.06,
+            diameter: 120,
+            color: const Color(0x1EF5A623),
+          ),
+          _BokehBlob(
+            left: -20,
+            top: size.height * 0.50,
+            diameter: 160,
+            color: const Color(0x163D7AB5),
+          ),
+          _BokehBlob(
+            left: size.width * 0.52,
+            top: size.height * 0.80,
+            diameter: 100,
+            color: const Color(0x18F5A623),
+          ),
+
+          // ── Subtle restaurant icons ──
+          _BgIcon(
+            icon: Icons.restaurant_rounded,
+            left: size.width * 0.06,
+            top: size.height * 0.07,
+            size: 38,
+            opacity: 0.13,
+          ),
+          _BgIcon(
+            icon: Icons.wine_bar_rounded,
+            left: size.width * 0.80,
+            top: size.height * 0.18,
+            size: 32,
+            opacity: 0.11,
+          ),
+          _BgIcon(
+            icon: Icons.dinner_dining_rounded,
+            left: size.width * 0.10,
+            top: size.height * 0.70,
+            size: 34,
+            opacity: 0.10,
+          ),
+          _BgIcon(
+            icon: Icons.local_bar_rounded,
+            left: size.width * 0.74,
+            top: size.height * 0.65,
+            size: 28,
+            opacity: 0.10,
+          ),
+          _BgIcon(
+            icon: Icons.star_rounded,
+            left: size.width * 0.86,
+            top: size.height * 0.46,
+            size: 20,
+            opacity: 0.14,
+          ),
+          _BgIcon(
+            icon: Icons.restaurant_menu_rounded,
+            left: size.width * 0.03,
+            top: size.height * 0.38,
+            size: 22,
+            opacity: 0.10,
+          ),
+          _BgIcon(
+            icon: Icons.stars_rounded,
+            left: size.width * 0.60,
+            top: size.height * 0.04,
+            size: 18,
+            opacity: 0.13,
+          ),
+
+          // ── Thin golden horizontal rule ──
+          Positioned(
+            top: size.height * 0.33,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    AppTheme.actionAccent.withOpacity(0.22),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BokehBlob extends StatelessWidget {
+  final double left;
+  final double top;
+  final double diameter;
+  final Color color;
+  const _BokehBlob({
+    required this.left,
+    required this.top,
+    required this.diameter,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: left,
+      top: top,
+      child: Container(
+        width: diameter,
+        height: diameter,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      ),
+    );
+  }
+}
+
+class _BgIcon extends StatelessWidget {
+  final IconData icon;
+  final double left;
+  final double top;
+  final double size;
+  final double opacity;
+  const _BgIcon({
+    required this.icon,
+    required this.left,
+    required this.top,
+    required this.size,
+    required this.opacity,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: left,
+      top: top,
+      child: Opacity(
+        opacity: opacity,
+        child: Icon(icon, size: size, color: Colors.white),
       ),
     );
   }

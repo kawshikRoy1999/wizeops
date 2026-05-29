@@ -38,9 +38,19 @@ class DashboardScreen extends StatelessWidget {
   static String formatDateStatic(DateTime d) => _formatDate(d);
 }
 
-class _DashboardView extends StatelessWidget {
+class _DashboardView extends StatefulWidget {
   final UserEntity user;
   const _DashboardView({required this.user});
+
+  @override
+  State<_DashboardView> createState() => _DashboardViewState();
+}
+
+class _DashboardViewState extends State<_DashboardView> {
+  bool _isCardView = false;
+  String? _filterStatus; // null = All
+
+  void _toggleView() => setState(() => _isCardView = !_isCardView);
 
   @override
   Widget build(BuildContext context) {
@@ -63,9 +73,49 @@ class _DashboardView extends StatelessWidget {
           top: false,
           child: Column(
             children: [
-              _GreetingHeader(user: user, isDark: isDark),
-              _DatePickerBar(user: user, isDark: isDark),
-              Expanded(child: _ChecklistBody(user: user, isDark: isDark)),
+              _GreetingHeader(user: widget.user, isDark: isDark),
+              _DatePickerBar(
+                user: widget.user,
+                isDark: isDark,
+                isCardView: _isCardView,
+                onToggleView: _toggleView,
+                filterStatus: _filterStatus,
+                onFilterChanged: (v) => setState(() => _filterStatus = v),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onHorizontalDragEnd: (details) {
+                    final v = details.primaryVelocity ?? 0;
+                    if (v.abs() > 350) _toggleView();
+                  },
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 280),
+                    transitionBuilder: (child, animation) {
+                      final offset = child.key == ValueKey(_isCardView)
+                          ? const Offset(1, 0)
+                          : const Offset(-1, 0);
+                      return SlideTransition(
+                        position: Tween<Offset>(
+                          begin: offset,
+                          end: Offset.zero,
+                        ).animate(CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeOutCubic,
+                        )),
+                        child: FadeTransition(opacity: animation, child: child),
+                      );
+                    },
+                    child: _ChecklistBody(
+                      key: ValueKey('${_isCardView}_$_filterStatus'),
+                      user: widget.user,
+                      isDark: isDark,
+                      isCardView: _isCardView,
+                      filterStatus: _filterStatus,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -97,11 +147,11 @@ class _DashboardView extends StatelessWidget {
               MaterialPageRoute(
                 builder: (_) => BlocProvider.value(
                   value: context.read<AuthBloc>(),
-                  child: SettingsScreen(user: user),
+                  child: SettingsScreen(user: widget.user),
                 ),
               ),
             ),
-            child: _AvatarChip(user: user),
+            child: _AvatarChip(user: widget.user),
           ),
         ),
       ],
@@ -189,7 +239,18 @@ class _GreetingHeader extends StatelessWidget {
 class _DatePickerBar extends StatelessWidget {
   final UserEntity user;
   final bool isDark;
-  const _DatePickerBar({required this.user, required this.isDark});
+  final bool isCardView;
+  final VoidCallback onToggleView;
+  final String? filterStatus;
+  final ValueChanged<String?> onFilterChanged;
+  const _DatePickerBar({
+    required this.user,
+    required this.isDark,
+    required this.isCardView,
+    required this.onToggleView,
+    required this.filterStatus,
+    required this.onFilterChanged,
+  });
 
   String _label(DateTime d) {
     final now = DateTime.now();
@@ -287,7 +348,6 @@ class _DatePickerBar extends StatelessWidget {
       builder: (context, state) {
         final date = state.selectedDate;
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
             color: isDark ? AppTheme.darkBg : AppTheme.scaffoldBg,
             border: Border(
@@ -296,91 +356,129 @@ class _DatePickerBar extends StatelessWidget {
               ),
             ),
           ),
-          child: Row(
-            children: [
-              Icon(Icons.calendar_today_outlined,
-                  size: 15,
-                  color: isDark
-                      ? AppTheme.darkTextLow
-                      : AppTheme.textLowEmphasis),
-              const SizedBox(width: 8),
-              Text(
-                'Checklists for',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color:
-                      isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(
+              children: [
+                // ── Previous day ──
+                _DayNavButton(
+                  icon: Icons.chevron_left_rounded,
+                  onTap: () => _navigateDay(context, date, -1),
+                  isDark: isDark,
                 ),
-              ),
-              const SizedBox(width: 6),
-              // ── Previous day ──
-              _DayNavButton(
-                icon: Icons.chevron_left_rounded,
-                onTap: () => _navigateDay(context, date, -1),
-                isDark: isDark,
-              ),
-              const SizedBox(width: 4),
-              // ── Date pill (tap to open calendar) ──
-              GestureDetector(
-                onTap: () => _pickDate(context, date),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryBranding.withOpacity(
-                        isDark ? 0.25 : 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppTheme.primaryBranding.withOpacity(
-                          isDark ? 0.4 : 0.2),
+                const SizedBox(width: 4),
+                // ── Date pill (tap to open calendar) ──
+                GestureDetector(
+                  onTap: () => _pickDate(context, date),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryBranding
+                          .withOpacity(isDark ? 0.25 : 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppTheme.primaryBranding
+                            .withOpacity(isDark ? 0.4 : 0.2),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _label(date),
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? AppTheme.darkTextHigh
+                                : AppTheme.primaryBranding,
+                          ),
+                        ),
+                        const SizedBox(width: 3),
+                        Icon(Icons.expand_more_rounded,
+                            size: 14,
+                            color: isDark
+                                ? AppTheme.darkTextHigh
+                                : AppTheme.primaryBranding),
+                      ],
                     ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _label(date),
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isDark
-                              ? AppTheme.darkTextHigh
-                              : AppTheme.primaryBranding,
-                        ),
+                ),
+                const SizedBox(width: 4),
+                // ── Next day ──
+                _DayNavButton(
+                  icon: Icons.chevron_right_rounded,
+                  onTap: () => _navigateDay(context, date, 1),
+                  isDark: isDark,
+                ),
+
+                const Spacer(),
+
+                // ── Filter dropdown ──
+                _FilterDropdown(
+                  isDark: isDark,
+                  value: filterStatus,
+                  onChanged: onFilterChanged,
+                ),
+                const SizedBox(width: 8),
+
+                // ── View toggle ──
+                GestureDetector(
+                  onTap: onToggleView,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: isCardView
+                          ? AppTheme.primaryBranding
+                              .withOpacity(isDark ? 0.35 : 0.12)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isCardView
+                            ? AppTheme.primaryBranding
+                                .withOpacity(isDark ? 0.5 : 0.3)
+                            : (isDark
+                                ? AppTheme.darkBorder
+                                : const Color(0xFFDDE1E7)),
                       ),
-                      const SizedBox(width: 4),
-                      Icon(Icons.expand_more_rounded,
-                          size: 15,
-                          color: isDark
-                              ? AppTheme.darkTextHigh
-                              : AppTheme.primaryBranding),
-                    ],
+                    ),
+                    child: Icon(
+                      isCardView
+                          ? Icons.grid_view_rounded
+                          : Icons.view_list_rounded,
+                      size: 16,
+                      color: isCardView
+                          ? (isDark
+                              ? const Color(0xFF6B9FE4)
+                              : AppTheme.primaryBranding)
+                          : (isDark
+                              ? AppTheme.darkTextLow
+                              : AppTheme.textLowEmphasis),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              // ── Next day ──
-              _DayNavButton(
-                icon: Icons.chevron_right_rounded,
-                onTap: () => _navigateDay(context, date, 1),
-                isDark: isDark,
-              ),
-              const Spacer(),
-              // Refresh
-              GestureDetector(
-                onTap: () => context.read<ChecklistBloc>().add(FetchChecklists(
-                      assignDateTime: _formatDate(date),
-                      companyId: user.companyId,
-                      userId: user.id,
-                      selectedDate: date,
-                    )),
-                child: Icon(Icons.refresh_rounded,
-                    size: 18,
-                    color: isDark
-                        ? AppTheme.darkTextLow
-                        : AppTheme.textLowEmphasis),
-              ),
-            ],
+                const SizedBox(width: 8),
+
+                // ── Refresh ──
+                GestureDetector(
+                  onTap: () =>
+                      context.read<ChecklistBloc>().add(FetchChecklists(
+                            assignDateTime: _formatDate(date),
+                            companyId: user.companyId,
+                            userId: user.id,
+                            selectedDate: date,
+                          )),
+                  child: Icon(Icons.refresh_rounded,
+                      size: 18,
+                      color: isDark
+                          ? AppTheme.darkTextLow
+                          : AppTheme.textLowEmphasis),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -394,7 +492,15 @@ class _DatePickerBar extends StatelessWidget {
 class _ChecklistBody extends StatelessWidget {
   final UserEntity user;
   final bool isDark;
-  const _ChecklistBody({required this.user, required this.isDark});
+  final bool isCardView;
+  final String? filterStatus;
+  const _ChecklistBody({
+    super.key,
+    required this.user,
+    required this.isDark,
+    required this.isCardView,
+    required this.filterStatus,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -414,15 +520,57 @@ class _ChecklistBody extends StatelessWidget {
         }
 
         if (state is ChecklistLoaded) {
-          if (state.items.isEmpty) {
-            return _EmptyView(isDark: isDark);
+          // Apply status filter
+          final items = filterStatus == null
+              ? state.items
+              : state.items.where((item) {
+                  final s = item.checklistStatus.toLowerCase().trim();
+                  switch (filterStatus) {
+                    case 'submitted':
+                      return s == 'completed' ||
+                          s == 'submit' ||
+                          s == 'submitted';
+                    case 'draft':
+                      return s == 'save';
+                    case 'pending':
+                      return s != 'completed' &&
+                          s != 'submit' &&
+                          s != 'submitted' &&
+                          s != 'save';
+                    default:
+                      return true;
+                  }
+                }).toList();
+
+          if (items.isEmpty) {
+            return _EmptyView(isDark: isDark, isFiltered: filterStatus != null);
           }
+
+          if (isCardView) {
+            return GridView.builder(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 0.88,
+              ),
+              itemCount: items.length,
+              itemBuilder: (context, i) => _ChecklistGridCard(
+                item: items[i],
+                user: user,
+                selectedDate: state.selectedDate,
+                isDark: isDark,
+              ),
+            );
+          }
+
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-            itemCount: state.items.length,
+            itemCount: items.length,
             separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, i) => _ChecklistCard(
-              item: state.items[i],
+              item: items[i],
               user: user,
               selectedDate: state.selectedDate,
               isDark: isDark,
@@ -553,12 +701,211 @@ class _ChecklistCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────
+// Checklist Grid Card (card view)
+// ─────────────────────────────────────────
+class _ChecklistGridCard extends StatelessWidget {
+  final dynamic item;
+  final UserEntity user;
+  final DateTime selectedDate;
+  final bool isDark;
+  const _ChecklistGridCard({
+    required this.item,
+    required this.user,
+    required this.selectedDate,
+    required this.isDark,
+  });
+
+  static bool _isTodayDate(DateTime d) {
+    final now = DateTime.now();
+    return d.year == now.year && d.month == now.month && d.day == now.day;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final submitted = item.isSubmitted as bool;
+    final filled = item.totalFilledCount as int;
+    final total = item.totalCount as int;
+    final ratio = item.progressRatio as double;
+
+    // Accent color consistent with list view
+    final Color accent = submitted
+        ? AppTheme.statusSuccess
+        : isDark
+            ? const Color(0xFF6B9FE4)
+            : AppTheme.primaryBranding;
+
+    // Track color for the thin progress bar
+    final Color trackColor = isDark
+        ? (submitted ? const Color(0xFF1E3A2A) : const Color(0xFF1E2540))
+        : (submitted ? const Color(0xFFBFE8D0) : const Color(0xFFDDE5F8));
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkCard : AppTheme.surfaceWhite,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: submitted
+              ? AppTheme.statusSuccess.withOpacity(isDark ? 0.35 : 0.3)
+              : isDark
+                  ? AppTheme.darkBorder
+                  : const Color(0xFFE8ECF0),
+        ),
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ChecklistDetailScreen(
+                checklistAssignmentId: item.checklistAssignmentId as int,
+                companyId: user.companyId,
+                assignDate: DashboardScreen._formatDate(selectedDate),
+                checklistName: item.checklistName as String,
+                isSubmitted: item.isSubmitted as bool,
+                isToday: _isTodayDate(selectedDate),
+              ),
+            ),
+          ).then((refresh) {
+            if (refresh == true && context.mounted) {
+              context.read<ChecklistBloc>().add(FetchChecklists(
+                    assignDateTime: DashboardScreen._formatDate(selectedDate),
+                    companyId: user.companyId,
+                    userId: user.id,
+                    selectedDate: selectedDate,
+                  ));
+            }
+          }),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Top row: status badge + chevron ──
+                Row(
+                  children: [
+                    _StatusBadge(checklistStatus: item.checklistStatus as String),
+                    const Spacer(),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 11,
+                      color: isDark
+                          ? AppTheme.darkTextLow
+                          : AppTheme.textLowEmphasis,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // ── Checklist name ──
+                Expanded(
+                  child: Text(
+                    item.checklistName as String,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? AppTheme.darkTextHigh
+                          : AppTheme.textHighEmphasis,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                // ── Thin progress bar ──
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: SizedBox(
+                    height: 5,
+                    child: LinearProgressIndicator(
+                      value: submitted ? 1.0 : (total == 0 ? 0.0 : ratio),
+                      backgroundColor: trackColor,
+                      color: accent,
+                      minHeight: 5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // ── Count + date ──
+                Row(
+                  children: [
+                    // count chip
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: accent.withOpacity(isDark ? 0.15 : 0.09),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            submitted
+                                ? Icons.check_circle_outline_rounded
+                                : Icons.checklist_rounded,
+                            size: 11,
+                            color: accent,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            total == 0 ? '—' : '$filled/$total',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: accent,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    // date
+                    Text(
+                      item.assignDateTime as String,
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        color: isDark
+                            ? AppTheme.darkTextLow
+                            : AppTheme.textLowEmphasis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
 // Progress Circle (left indicator on card)
 // ─────────────────────────────────────────
 class _ProgressCircle extends StatelessWidget {
   final dynamic item;
   final bool isDark;
   const _ProgressCircle({required this.item, required this.isDark});
+
+  static const double size = 44;
 
   @override
   Widget build(BuildContext context) {
@@ -594,51 +941,59 @@ class _ProgressCircle extends StatelessWidget {
           : const Color(0xFFEEF2FF);  // light blue inner
     }
 
+    final double stroke = size >= 60 ? 4.5 : 3;
+    final double innerSize = size * 0.77;
+    final double iconSize = size >= 60 ? 22 : 16;
+    final double hintIconSize = size >= 60 ? 20 : 14;
+    final double textSize = size >= 60
+        ? (total >= 10 ? 13 : 15)
+        : (total >= 10 ? 9 : 10);
+
     return SizedBox(
-      width: 44,
-      height: 44,
+      width: size,
+      height: size,
       child: Stack(
         alignment: Alignment.center,
         children: [
           // Track ring (full circle background)
           SizedBox(
-            width: 44,
-            height: 44,
+            width: size,
+            height: size,
             child: CircularProgressIndicator(
               value: 1.0,
-              strokeWidth: 3,
+              strokeWidth: stroke,
               color: trackColor,
             ),
           ),
           // Progress arc
           SizedBox(
-            width: 44,
-            height: 44,
+            width: size,
+            height: size,
             child: CircularProgressIndicator(
               value: submitted ? 1.0 : ratio,
-              strokeWidth: 3,
+              strokeWidth: stroke,
               color: activeColor,
               backgroundColor: Colors.transparent,
             ),
           ),
           // Inner circle + fraction / check
           Container(
-            width: 34,
-            height: 34,
+            width: innerSize,
+            height: innerSize,
             decoration: BoxDecoration(
               color: innerFill,
               shape: BoxShape.circle,
             ),
             child: submitted
-                ? Icon(Icons.check_rounded, size: 16, color: activeColor)
+                ? Icon(Icons.check_rounded, size: iconSize, color: activeColor)
                 : Center(
                     child: total == 0
                         ? Icon(Icons.hourglass_empty_rounded,
-                            size: 14, color: activeColor)
+                            size: hintIconSize, color: activeColor)
                         : Text(
                             '$filled/$total',
                             style: GoogleFonts.inter(
-                              fontSize: total >= 10 ? 9 : 10,
+                              fontSize: textSize,
                               fontWeight: FontWeight.w700,
                               color: activeColor,
                               height: 1,
@@ -708,6 +1063,146 @@ class _StatusBadge extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────
+// Filter Dropdown
+// ─────────────────────────────────────────
+class _FilterDropdown extends StatelessWidget {
+  final bool isDark;
+  final String? value;
+  final ValueChanged<String?> onChanged;
+
+  const _FilterDropdown({
+    required this.isDark,
+    required this.value,
+    required this.onChanged,
+  });
+
+  static const _options = <String?, String>{
+    null: 'All',
+    'pending': 'Pending',
+    'draft': 'Draft',
+    'submitted': 'Submitted',
+  };
+
+  static const _icons = <String?, IconData>{
+    null: Icons.tune_rounded,
+    'pending': Icons.hourglass_empty_rounded,
+    'draft': Icons.edit_note_rounded,
+    'submitted': Icons.check_circle_outline_rounded,
+  };
+
+  static const _colors = <String?, Color>{
+    null: AppTheme.primaryBranding,
+    'pending': Color(0xFF6B9FE4),
+    'draft': Color(0xFFB45309),
+    'submitted': AppTheme.statusSuccess,
+  };
+
+  static const _darkColors = <String?, Color>{
+    null: Color(0xFF9BB3CB),
+    'pending': Color(0xFF6B9FE4),
+    'draft': Color(0xFFFFCA28),
+    'submitted': AppTheme.statusSuccess,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final isActive = value != null;
+    final Color dotColor = isDark ? _darkColors[value]! : _colors[value]!;
+    final Color iconColor = isActive
+        ? dotColor
+        : (isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis);
+    final Color bg = isActive
+        ? dotColor.withOpacity(isDark ? 0.18 : 0.10)
+        : Colors.transparent;
+    final Color border = isActive
+        ? dotColor.withOpacity(isDark ? 0.45 : 0.28)
+        : (isDark ? AppTheme.darkBorder : const Color(0xFFDDE1E7));
+
+    return PopupMenuButton<String?>(
+      onSelected: (v) => onChanged(v == '__all__' ? null : v),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: isDark ? AppTheme.darkCard : Colors.white,
+      elevation: 4,
+      offset: const Offset(0, 36),
+      itemBuilder: (_) => _options.entries.map((e) {
+        final optKey = e.key;
+        final optLabel = e.value;
+        final optIcon = _icons[optKey]!;
+        final optColor = isDark ? _darkColors[optKey]! : _colors[optKey]!;
+        final selected = value == optKey;
+        return PopupMenuItem<String?>(
+          value: optKey ?? '__all__',
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          child: Row(
+            children: [
+              Icon(optIcon,
+                  size: 15,
+                  color: selected
+                      ? optColor
+                      : (isDark
+                          ? AppTheme.darkTextLow
+                          : AppTheme.textLowEmphasis)),
+              const SizedBox(width: 10),
+              Text(
+                optLabel,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  color: selected
+                      ? optColor
+                      : (isDark
+                          ? AppTheme.darkTextHigh
+                          : AppTheme.textHighEmphasis),
+                ),
+              ),
+              if (selected) ...[
+                const Spacer(),
+                Icon(Icons.check_rounded, size: 14, color: optColor),
+              ],
+            ],
+          ),
+        );
+      }).toList(),
+      // ── Compact icon button — fixed 30×30, never overflows ──
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: border),
+            ),
+            child: Icon(Icons.tune_rounded, size: 16, color: iconColor),
+          ),
+          // Active dot indicator
+          if (isActive)
+            Positioned(
+              top: -3,
+              right: -3,
+              child: Container(
+                width: 9,
+                height: 9,
+                decoration: BoxDecoration(
+                  color: dotColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isDark ? AppTheme.darkBg : AppTheme.scaffoldBg,
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────
 // Day Navigation Button (prev / next)
 // ─────────────────────────────────────────
 class _DayNavButton extends StatelessWidget {
@@ -749,7 +1244,8 @@ class _DayNavButton extends StatelessWidget {
 // ─────────────────────────────────────────
 class _EmptyView extends StatelessWidget {
   final bool isDark;
-  const _EmptyView({required this.isDark});
+  final bool isFiltered;
+  const _EmptyView({required this.isDark, this.isFiltered = false});
 
   @override
   Widget build(BuildContext context) {
@@ -757,25 +1253,40 @@ class _EmptyView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.checklist_rounded,
-              size: 48,
-              color: isDark
-                  ? AppTheme.darkTextLow.withOpacity(0.4)
-                  : AppTheme.textLowEmphasis.withOpacity(0.35)),
+          Icon(
+            isFiltered
+                ? Icons.filter_list_off_rounded
+                : Icons.checklist_rounded,
+            size: 48,
+            color: isDark
+                ? AppTheme.darkTextLow.withOpacity(0.4)
+                : AppTheme.textLowEmphasis.withOpacity(0.35),
+          ),
           const SizedBox(height: 14),
-          Text('No checklists for this date',
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
-              )),
+          Text(
+            isFiltered
+                ? 'No checklists match this filter'
+                : 'No checklists for this date',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color:
+                  isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text('Try selecting a different date',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                color: (isDark ? AppTheme.darkTextLow : AppTheme.textLowEmphasis)
-                    .withOpacity(0.7),
-              )),
+          Text(
+            isFiltered
+                ? 'Try a different filter or date'
+                : 'Try selecting a different date',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: (isDark
+                      ? AppTheme.darkTextLow
+                      : AppTheme.textLowEmphasis)
+                  .withOpacity(0.7),
+            ),
+          ),
         ],
       ),
     );
